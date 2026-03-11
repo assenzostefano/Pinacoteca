@@ -71,6 +71,43 @@
       "left": -250,
       "rotate": 90,
       "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-ntc-temperature-sensor",
+      "id": "ntc1",
+      "top": 100,
+      "left": -250,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_cool",
+      "top": -50,
+      "left": -300,
+      "attrs": { "color": "blue" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_heat",
+      "top": -50,
+      "left": -350,
+      "attrs": { "color": "orange" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "res_led_cool",
+      "top": 10,
+      "left": -300,
+      "rotate": 90,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "res_led_heat",
+      "top": 10,
+      "left": -350,
+      "rotate": 90,
+      "attrs": { "value": "220" }
     }
   ],
   "connections": [
@@ -95,7 +132,18 @@
     [ "led_green:C", "res_led_green:1", "black", [ "v0" ] ],
     [ "led_red:C", "res_led_red:1", "black", [ "v0" ] ],
     [ "res_led_green:2", "uno:GND.3", "black", [ "v30", "h150", "v180" ] ],
-    [ "res_led_red:2", "uno:GND.3", "black", [ "v50", "h190", "v160" ] ]
+    [ "res_led_red:2", "uno:GND.3", "black", [ "v50", "h190", "v160" ] ],
+
+    [ "ntc1:VCC", "uno:5V", "red", [ "v20", "h350", "v210", "h-150" ] ],
+    [ "ntc1:GND", "uno:GND.1", "black", [ "v30", "h350", "v-170", "h30" ] ],
+    [ "ntc1:OUT", "uno:A0", "green", [ "v40", "h220", "v130" ] ],
+
+    [ "led_cool:A", "uno:8", "blue", [ "v20", "h180" ] ],
+    [ "led_heat:A", "uno:9", "orange", [ "v30", "h210" ] ],
+    [ "led_cool:C", "res_led_cool:1", "black", [ "v0" ] ],
+    [ "led_heat:C", "res_led_heat:1", "black", [ "v0" ] ],
+    [ "res_led_cool:2", "uno:GND.3", "black", [ "v70", "h210", "v120" ] ],
+    [ "res_led_heat:2", "uno:GND.3", "black", [ "v90", "h240", "v100" ] ]
   ],
   "dependencies": {}
 }
