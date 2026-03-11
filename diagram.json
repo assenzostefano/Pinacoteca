@@ -11,12 +11,54 @@
       "left": 97.8,
       "rotate": 270,
       "attrs": {}
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn_in",
+      "top": -20,
+      "left": -100,
+      "attrs": { "color": "green", "label": "IN" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn_out",
+      "top": -20,
+      "left": 0,
+      "attrs": { "color": "red", "label": "OUT" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "res_in",
+      "top": 30,
+      "left": -100,
+      "rotate": 90,
+      "attrs": { "value": "10000" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "res_out",
+      "top": 30,
+      "left": 0,
+      "rotate": 90,
+      "attrs": { "value": "10000" }
     }
   ],
   "connections": [
     [ "servo1:PWM", "uno:3", "blue", [ "v28.8", "h0.2" ] ],
     [ "servo1:GND", "uno:GND.1", "black", [ "v28.8", "h-96", "v19.2" ] ],
-    [ "servo1:V+", "uno:5V", "red", [ "v19.2", "h67.3", "v192", "h-124.8" ] ]
+    [ "servo1:V+", "uno:5V", "red", [ "v19.2", "h67.3", "v192", "h-124.8" ] ],
+    
+    [ "btn_in:1.l", "uno:5V", "red", [ "v-20", "h-50", "v250" ] ],
+    [ "btn_out:1.l", "uno:5V", "red", [ "v-30", "h-140", "v260" ] ],
+    
+    [ "btn_in:2.l", "uno:1", "green", [ "v20", "h30" ] ],
+    [ "btn_out:2.l", "uno:2", "orange", [ "v20", "h30" ] ],
+    
+    [ "btn_in:2.r", "res_in:1", "black", [ "v0" ] ],
+    [ "btn_out:2.r", "res_out:1", "black", [ "v0" ] ],
+    
+    [ "res_in:2", "uno:GND.2", "black", [ "v20", "h40", "v210" ] ],
+    [ "res_out:2", "uno:GND.2", "black", [ "v30", "h-50", "v200" ] ]
   ],
   "dependencies": {}
 }

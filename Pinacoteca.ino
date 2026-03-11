@@ -1,5 +1,8 @@
 #include <Servo.h>
 
+// Local libraries
+#include "lib/servomotor/servomotor.h"
+
 int counter_people = 0;
 
 // Pin setup
@@ -12,13 +15,27 @@ Servo myservo;
 void setup() {
     pinMode(in_button, INPUT);
     pinMode(out_button, INPUT);
-    
+
     myservo.attach(servomotor);
-    myservo.write(90);
+    myservo.write(-90);
 }
 
 void loop() {
-    if (in_button == TRUE && counter_people <= 5) {
-        myservo.write(90);
+    // Tornello (max 5 persone)
+    bool in_button_state = digitalRead(in_button);
+    bool out_button_state = digitalRead(out_button);
+
+    if (in_button_state == HIGH && counter_people < 5) {
+        antiSufferingServo(90, myservo);
+        counter_people++;
+        delay(1000);
+        antiSufferingServo(-90, myservo);
+    }
+
+    if (out_button_state == HIGH && counter_people > 0) {
+        antiSufferingServo(90, myservo);
+        counter_people--;
+        delay(1000);
+        antiSufferingServo(-90, myservo);
     }
 }
