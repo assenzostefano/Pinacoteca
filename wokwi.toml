@@ -1,0 +1,4 @@
+[wokwi]
+version = 1
+firmware = 'build/Pinacoteca.ino.hex'
+elf = 'build/Pinacoteca.ino.elf'
