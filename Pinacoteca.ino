@@ -31,21 +31,21 @@ Servo myServo;
 Turnstile entranceTurnstile(PIN_IN_BUTTON, PIN_OUT_BUTTON, 5); // max 5 people
 Stoplight trafficLight(PIN_GREEN_LIGHT, PIN_RED_LIGHT);
 Thermostat mainThermostat(PIN_TEMPERATURE_SENSOR, 20.0, PIN_BLU_LIGHT, PIN_YELLOW_LIGHT);
+LightingControl galleryLighting(PIN_PHOTORESISTOR, PIN_PLAFONIERE, 200); // Target 200 LUX
 
 void setup() {
     Serial.begin(9600);
     
-    myServo.attach(PIN_SERVOMOTOR); // Initialize the servo motor
+    // Initialize the servo motor
+    myServo.attach(PIN_SERVOMOTOR);
     myServo.write(0);
     entranceTurnstile.begin(&myServo);
     
     trafficLight.begin(); // Initialize the traffic light
     mainThermostat.begin(); // Initialize the thermostat
+    galleryLighting.begin(); // Initialize lighting control
 
     pinMode(IS_HUMIDIFIER_LED, OUTPUT);
-    pinMode(PIN_PHOTORESISTOR, INPUT);
-
-    pinMode(PIN_PLAFONIERE, OUTPUT);
 }
 
 void loop() {
@@ -61,5 +61,8 @@ void loop() {
     // Thermostat
     mainThermostat.update();
 
-    // TODO: Add humidity, and lighting control logic here
+    // Lighting (mantiene illuminazione diffusa di 200 LUX)
+    galleryLighting.update();
+
+    // TODO: Add humidity control logic here
 }

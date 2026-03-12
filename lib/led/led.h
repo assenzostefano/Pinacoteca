@@ -8,6 +8,9 @@ bool led(int pin, bool state) {
     return true;
 }
 
-// TODO: Implement functions for dimming
+bool ledDimming(int pin, int pwm_value) {
+    analogWrite(pin, pwm_value);
+    return true;
+}
 
 #endif // LED_H
