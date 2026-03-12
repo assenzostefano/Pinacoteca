@@ -30,6 +30,7 @@ Servo myServo;
 
 Turnstile entranceTurnstile(PIN_IN_BUTTON, PIN_OUT_BUTTON, 5); // max 5 people
 Stoplight trafficLight(PIN_GREEN_LIGHT, PIN_RED_LIGHT);
+Thermostat mainThermostat(PIN_TEMPERATURE_SENSOR, 20.0, PIN_BLU_LIGHT, PIN_YELLOW_LIGHT);
 
 void setup() {
     Serial.begin(9600);
@@ -39,11 +40,8 @@ void setup() {
     entranceTurnstile.begin(&myServo);
     
     trafficLight.begin(); // Initialize the traffic light
+    mainThermostat.begin(); // Initialize the thermostat
 
-    pinMode(PIN_YELLOW_LIGHT, OUTPUT);
-    pinMode(PIN_BLU_LIGHT, OUTPUT);
-
-    pinMode(PIN_TEMPERATURE_SENSOR, INPUT);
     pinMode(IS_HUMIDIFIER_LED, OUTPUT);
     pinMode(PIN_PHOTORESISTOR, INPUT);
 
@@ -60,5 +58,8 @@ void loop() {
     // Update traffic light based on current people count
     trafficLight.update(currentPeople, 5); 
 
-    // TODO: Add temperature, humidity, and lighting control logic here
+    // Thermostat
+    mainThermostat.update();
+
+    // TODO: Add humidity, and lighting control logic here
 }
