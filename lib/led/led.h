@@ -8,4 +8,6 @@ bool led(int pin, bool state) {
     return true;
 }
 
+// TODO: Implement functions for dimming
+
 #endif // LED_H

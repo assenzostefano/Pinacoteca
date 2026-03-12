@@ -7,9 +7,12 @@ bool antiSufferingServo(int angle, Servo &s ){
   
   if (calcolo > 180 || calcolo < 0){
     Serial.println("Limit movement Servo Motor");
+    
     return false;
+
   } else {
     s.write(calcolo);
+    
     return true;
   }
 }
