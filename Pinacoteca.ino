@@ -6,6 +6,8 @@
 #include "lib/temperature/thermostat.h"
 #include "lib/humidity/humidity.h"
 #include "lib/humidity/humidifier.h"
+#include "lib/lighting/photoresistor.h"
+#include "lib/lighting/lighting_control.h"
 
 int counter_people = 0;
 
@@ -21,6 +23,9 @@ int yellow_light = 8; // Raffreddamento
 int blu_light = 9; // Riscaldamento
 
 int temperature_sensor = A0;
+int photoresistor = A1;
+
+int plafoniere = 12;
 
 int humidity_sensor = 11;
 
@@ -41,6 +46,8 @@ void setup() {
 
     pinMode(temperature_sensor, INPUT);
     pinMode(humidity_sensor, INPUT);
+
+    pinMode(plafoniere, OUTPUT);
 
     myservo.attach(servomotor);
     myservo.write(0);
@@ -69,10 +76,12 @@ void loop() {
     // Thermostat (20°C)
     thermostat(temperature_sensor, 20, yellow_light, blu_light);
 
-    // Humidity sensor
-    // Humidity Control (Umidificatore)
+    // Humidity sensor and control (65%)
     float current_humidity = humidity_control();
     if (!isnan(current_humidity)) {
-        humidifier_control(current_humidity, 65, 11); // Pin 11 è il LED dell'umidificatore
+        humidifier_control(current_humidity, 65, humidity_sensor);
     }
+
+    // Light control (TODO)
+
 }

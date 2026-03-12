@@ -130,6 +130,73 @@
       "left": -400,
       "rotate": 90,
       "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-photoresistor-sensor",
+      "id": "ldr1",
+      "top": 150,
+      "left": 400,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_c1",
+      "top": -150,
+      "left": 150,
+      "attrs": { "color": "yellow", "label": "P1" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "res_c1",
+      "top": -90,
+      "left": 150,
+      "rotate": 90,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_c2",
+      "top": -150,
+      "left": 200,
+      "attrs": { "color": "yellow", "label": "P2" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "res_c2",
+      "top": -90,
+      "left": 200,
+      "rotate": 90,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_c3",
+      "top": -150,
+      "left": 250,
+      "attrs": { "color": "yellow", "label": "P3" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "res_c3",
+      "top": -90,
+      "left": 250,
+      "rotate": 90,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_c4",
+      "top": -150,
+      "left": 300,
+      "attrs": { "color": "yellow", "label": "P4" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "res_c4",
+      "top": -90,
+      "left": 300,
+      "rotate": 90,
+      "attrs": { "value": "220" }
     }
   ],
   "connections": [
@@ -173,7 +240,28 @@
 
     [ "led_humidifier:A", "uno:11", "white", [ "v40", "h270" ] ],
     [ "led_humidifier:C", "res_led_humidifier:1", "black", [ "v0" ] ],
-    [ "res_led_humidifier:2", "uno:GND.3", "black", [ "v110", "h270", "v80" ] ]
+    [ "res_led_humidifier:2", "uno:GND.3", "black", [ "v110", "h270", "v80" ] ],
+
+    [ "ldr1:VCC", "uno:5V", "red", [ "v20", "h-260", "v200", "h-100" ] ],
+    [ "ldr1:GND", "uno:GND.1", "black", [ "v30", "h-280", "v-70", "h-100" ] ],
+    [ "ldr1:AO", "uno:A1", "purple", [ "v40", "h-220", "v-230", "h30" ] ],
+
+    [ "led_c1:A", "uno:12", "yellow", [ "v20", "h110", "v120", "h-120" ] ],
+    [ "led_c2:A", "uno:12", "yellow", [ "v20", "h60", "v120", "h-120" ] ],
+    [ "led_c3:A", "uno:12", "yellow", [ "v20", "h10", "v120", "h-120" ] ],
+    [ "led_c4:A", "uno:12", "yellow", [ "v20", "h-40", "v120", "h-120" ] ],
+
+    [ "led_c1:C", "res_c1:1", "black", [ "v0" ] ],
+    [ "res_c1:2", "uno:GND.2", "black", [ "v20", "h-80", "v260", "h-10" ] ],
+    
+    [ "led_c2:C", "res_c2:1", "black", [ "v0" ] ],
+    [ "res_c2:2", "uno:GND.2", "black", [ "v20", "h-130", "v260", "h-10" ] ],
+
+    [ "led_c3:C", "res_c3:1", "black", [ "v0" ] ],
+    [ "res_c3:2", "uno:GND.2", "black", [ "v20", "h-180", "v260", "h-10" ] ],
+
+    [ "led_c4:C", "res_c4:1", "black", [ "v0" ] ],
+    [ "res_c4:2", "uno:GND.2", "black", [ "v20", "h-230", "v260", "h-10" ] ]
   ],
   "dependencies": {}
 }
