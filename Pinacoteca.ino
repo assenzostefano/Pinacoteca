@@ -4,6 +4,8 @@
 #include "lib/servomotor/turnstile.h"
 #include "lib/led/stoplight.h"
 #include "lib/temperature/thermostat.h"
+#include "lib/humidity/humidity.h"
+#include "lib/humidity/humidifier.h"
 
 int counter_people = 0;
 
@@ -20,10 +22,13 @@ int blu_light = 9; // Riscaldamento
 
 int temperature_sensor = A0;
 
+int humidity_sensor = 11;
+
 Servo myservo;
 
 void setup() {
     Serial.begin(9600);
+    dht.begin();
     
     pinMode(in_button, INPUT);
     pinMode(out_button, INPUT);
@@ -35,6 +40,7 @@ void setup() {
     pinMode(blu_light, OUTPUT);
 
     pinMode(temperature_sensor, INPUT);
+    pinMode(humidity_sensor, INPUT);
 
     myservo.attach(servomotor);
     myservo.write(0);
@@ -43,14 +49,14 @@ void setup() {
 void loop() {
 
     /* TODO:
-     * 1. [] mantenere una temperatura dell’ambiente costante a 20°C;
+     * 1. [X] mantenere una temperatura dell’ambiente costante a 20°C;
      * 2. [] mantenere un’illuminazione diffusa di 200 LUX
-     * 3. [] mantenere un’umidità relativa del 65%
+     * 3. [X] mantenere un’umidità relativa del 65%
      * 4. [X] controllare affluenza in sala nel limite di 5 persone presenti
      * 5. [] disporre di un pannello di gestione che visualizzi la situazione in essere, permetta di modificare i parametri sopra indicati con una variazione di +10% o -10%
-     * 6. [] controllare il sistema di climatizzazione dotato di un ingresso (attivo a +12V) per il raffreddamento e un ingresso (attivo a +12V) per il riscaldamento. Il climatizzatore può funzionare solo in raffreddamento o in riscaldamento alternativamente, il cambio stato deve prevedere uno stop di almeno 1 minuto
+     * 6. [X] controllare il sistema di climatizzazione dotato di un ingresso (attivo a +12V) per il raffreddamento e un ingresso (attivo a +12V) per il riscaldamento. Il climatizzatore può funzionare solo in raffreddamento o in riscaldamento alternativamente, il cambio stato deve prevedere uno stop di almeno 1 minuto
      * 7. [] controllare il sistema di illuminazione a luce diffusa costituito da 4 plafoniere LED da 40W posizionate a soffitto (altezza 3,0 m)
-     * 8. [] controllare un umidificatore che può prelevare l’umidità dall’aria con una caratteristica di 0,9 lt/h, si attiva con un ingresso alto (+12V)
+     * 8. [X] controllare un umidificatore che può prelevare l’umidità dall’aria con una caratteristica di 0,9 lt/h, si attiva con un ingresso alto (+12V)
      * 9. [X] controllare una barriera di ingresso/uscita automatica e un semaforo d’accesso (ROSSO=attendere, VERDE=entrare)
     */
 
@@ -62,4 +68,11 @@ void loop() {
 
     // Thermostat (20°C)
     thermostat(temperature_sensor, 20, yellow_light, blu_light);
+
+    // Humidity sensor
+    // Humidity Control (Umidificatore)
+    float current_humidity = humidity_control();
+    if (!isnan(current_humidity)) {
+        humidifier_control(current_humidity, 65, 11); // Pin 11 è il LED dell'umidificatore
+    }
 }

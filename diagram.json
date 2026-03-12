@@ -108,6 +108,28 @@
       "left": -350,
       "rotate": 90,
       "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-dht22",
+      "id": "dht1",
+      "top": 150,
+      "left": 250,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_humidifier",
+      "top": -50,
+      "left": -400,
+      "attrs": { "color": "white" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "res_led_humidifier",
+      "top": 10,
+      "left": -400,
+      "rotate": 90,
+      "attrs": { "value": "220" }
     }
   ],
   "connections": [
@@ -143,7 +165,15 @@
     [ "led_cool:C", "res_led_cool:1", "black", [ "v0" ] ],
     [ "led_heat:C", "res_led_heat:1", "black", [ "v0" ] ],
     [ "res_led_cool:2", "uno:GND.3", "black", [ "v70", "h210", "v120" ] ],
-    [ "res_led_heat:2", "uno:GND.3", "black", [ "v90", "h240", "v100" ] ]
+    [ "res_led_heat:2", "uno:GND.3", "black", [ "v90", "h240", "v100" ] ],
+
+    [ "dht1:VCC", "uno:5V", "red", [ "v10", "h-150", "v210", "h-130" ] ],
+    [ "dht1:GND", "uno:GND.1", "black", [ "v30", "h-170", "v-80", "h-120" ] ],
+    [ "dht1:SDA", "uno:10", "green", [ "v20", "h-140", "v-230", "h120" ] ],
+
+    [ "led_humidifier:A", "uno:11", "white", [ "v40", "h270" ] ],
+    [ "led_humidifier:C", "res_led_humidifier:1", "black", [ "v0" ] ],
+    [ "res_led_humidifier:2", "uno:GND.3", "black", [ "v110", "h270", "v80" ] ]
   ],
   "dependencies": {}
 }
