@@ -1,20 +1,65 @@
+#ifndef HUMIDIFIER_H
+#define HUMIDIFIER_H
+
+#include <Arduino.h>
+#include "humidity.h"
 #include "../led/led.h"
 
-bool humidifier_control(float humidity_value, int target_humidity, int humidifier_pin) {
-    float tolerance = 2.0; 
+class HumidifierControl {
+    private:
+        int _humidifierPin;
+        float _targetHumidity;
 
-    if (humidity_value > (target_humidity + tolerance)) {
-        Serial.println("Humidity too high. Dehumidifier ON");
-        led(humidifier_pin, HIGH);
+    public:
+        HumidifierControl(int humidifierPin, float targetHumidity)
+            : _humidifierPin(humidifierPin), _targetHumidity(targetHumidity) {}
 
-    } else if (humidity_value < (target_humidity - tolerance)) {
-        Serial.println("Humidity too low. Dehumidifier OFF");
-        led(humidifier_pin, LOW);
-        
-    } else {
-        Serial.println("Humidity is optimal.");
-        led(humidifier_pin, LOW);
-    }
-    
-    return true;
-}
+        void begin() {
+            beginHumiditySensor(); // Inizializza l'hardware DHT
+            pinMode(_humidifierPin, OUTPUT);
+        }
+
+        bool update() {
+            float currentHumidity = readHumidity();
+            
+            // Sicurezza: se il sensore è in errore, spegni l'umidificatore per evitare danni all'aria
+            if (currentHumidity == -999.0) {
+                led(_humidifierPin, LOW);
+                return false;
+            }
+
+            // Da specifiche: l'umidificatore (che preleva l'umidità, quindi DEUMIDIFICATORE in questo caso)
+            // deve accendersi per abbassare l'umidità. 
+            float tolerance = 2.0; 
+
+            if (currentHumidity > (_targetHumidity + tolerance)) {
+                // Troppa umidità -> Accendi il macchinario per rimuoverla (Deumidificatore ON)
+                led(_humidifierPin, HIGH);
+
+            } else if (currentHumidity < (_targetHumidity - tolerance)) {
+                // Troppo secco o target raggiunto -> Spegni il macchinario
+                led(_humidifierPin, LOW);
+                
+            } else {
+                // Valore ottimale all'interno della tolleranza -> Macchinario SPENTO
+                led(_humidifierPin, LOW);
+            }
+            
+            return true;
+        }
+
+        // Metodi per il Pannello di Controllo (Punto 5)
+        void setTargetHumidity(float newHumidityTarget) {
+            _targetHumidity = newHumidityTarget;
+        }
+
+        float getTargetHumidity() const {
+            return _targetHumidity;
+        }
+
+        float getCurrentHumidity() const {
+            return readHumidity();
+        }
+};
+
+#endif // HUMIDIFIER_H

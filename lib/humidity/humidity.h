@@ -1,16 +1,27 @@
-#include <DHT.h> // Library for DHT sensor
-#define DHTPIN 2 // PIN DHT Sensor (Humidity and Temperature)
-#define DHTTYPE DHT22 // Specific model of DHT sensor (Wokwi uses DHT22)
+#ifndef HUMIDITY_H
+#define HUMIDITY_H
 
-DHT dht(DHTPIN, DHTTYPE); // Initialize DHT sensor
+#include <Arduino.h>
+#include <DHT.h> 
 
-float humidity_control() {
-    float humidity_value = dht.readHumidity();
+#define DHTPIN 2 // PIN DHT Sensor
+#define DHTTYPE DHT22 // Model (Wokwi supports DHT22)
+
+DHT dht_sensor(DHTPIN, DHTTYPE); 
+
+// Initialize the DHT sensor
+void beginHumiditySensor() {
+    dht_sensor.begin();
+}
+
+float readHumidity() {
+    float humidity_value = dht_sensor.readHumidity();
     
-    if (isnan(humidity_value)) { // isnan (Is Not a Number) check if the reading failed
-        Serial.println("Failed to read from DHT sensor!");
-        return false;
+    if (isnan(humidity_value)) { // isnan (Is Not A Number) check if the reading is valid, if not it returns a specific error value
+        return -999.0;
     }
     
     return humidity_value;
 }
+
+#endif // HUMIDITY_H

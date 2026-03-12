@@ -17,21 +17,21 @@ const int PIN_RED_LIGHT = 5;
 const int PIN_IN_BUTTON = 6;
 const int PIN_OUT_BUTTON = 7;
 
-const int PIN_BLU_LIGHT = 8; // Riscaldamento
-const int PIN_YELLOW_LIGHT = 9; // Raffreddamento
+const int PIN_BLU_LIGHT = 8; // Cooling
+const int PIN_YELLOW_LIGHT = 9; // Heating
 
 const int PIN_PLAFONIERE = 10;
 
 const int PIN_TEMPERATURE_SENSOR = A0;
 const int PIN_PHOTORESISTOR = A1;
 
-// --- CREAZIONE DEGLI OGGETTI ---
 Servo myServo;
 
-Turnstile entranceTurnstile(PIN_IN_BUTTON, PIN_OUT_BUTTON, 5); // max 5 people
+Turnstile entranceTurnstile(PIN_IN_BUTTON, PIN_OUT_BUTTON, 5); // Max 5 people
 Stoplight trafficLight(PIN_GREEN_LIGHT, PIN_RED_LIGHT);
-Thermostat mainThermostat(PIN_TEMPERATURE_SENSOR, 20.0, PIN_BLU_LIGHT, PIN_YELLOW_LIGHT);
+Thermostat mainThermostat(PIN_TEMPERATURE_SENSOR, 20.0, PIN_YELLOW_LIGHT, PIN_BLU_LIGHT); // Target 20°C
 LightingControl galleryLighting(PIN_PHOTORESISTOR, PIN_PLAFONIERE, 200); // Target 200 LUX
+HumidifierControl galleryHumidifier(IS_HUMIDIFIER_LED, 65.0); // Target 65% humidity
 
 void setup() {
     Serial.begin(9600);
@@ -44,8 +44,7 @@ void setup() {
     trafficLight.begin(); // Initialize the traffic light
     mainThermostat.begin(); // Initialize the thermostat
     galleryLighting.begin(); // Initialize lighting control
-
-    pinMode(IS_HUMIDIFIER_LED, OUTPUT);
+    galleryHumidifier.begin(); // Initialize humidity control
 }
 
 void loop() {
@@ -61,8 +60,9 @@ void loop() {
     // Thermostat
     mainThermostat.update();
 
-    // Lighting (mantiene illuminazione diffusa di 200 LUX)
+    // Lighting (max 200 LUX)
     galleryLighting.update();
 
-    // TODO: Add humidity control logic here
+    // Humidity Control (target 65%)
+    galleryHumidifier.update();
 }
