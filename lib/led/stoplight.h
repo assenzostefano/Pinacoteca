@@ -1,16 +1,31 @@
+#ifndef STOPLIGHT_H
+#define STOPLIGHT_H
+
+#include <Arduino.h>
 #include "led.h"
 
-int stoplight(int counter_people, int max_people, int green_light, int red_light) {
-    if (counter_people < max_people) {
-        led(green_light, HIGH);
-        led(red_light, LOW);
+class Stoplight {
+    private:
+        int _greenPin;
+        int _redPin;
 
-        return 1;
+    public:
+        Stoplight(int greenPin, int redPin) : _greenPin(greenPin), _redPin(redPin) {}
 
-    } else if (counter_people >= max_people) {
-        led(green_light, LOW);
-        led(red_light, HIGH);
+        void begin() {
+            pinMode(_greenPin, OUTPUT);
+            pinMode(_redPin, OUTPUT);
+        }
 
-        return 2;
-    }
-}
+        void update(int currentPeople, int maxPeople) {
+            if (currentPeople < maxPeople) {
+                led(_greenPin, HIGH);
+                led(_redPin, LOW);
+            } else {
+                led(_greenPin, LOW);
+                led(_redPin, HIGH);
+            }
+        }
+};
+
+#endif

@@ -1,21 +1,54 @@
+#ifndef TURNSTILE_H
+#define TURNSTILE_H
+
+#include <Arduino.h>
 #include "servomotor.h"
 
-bool turnstile(int in_button, int out_button, Servo &myservo, int &counter_people) {
-    bool in_button_state = digitalRead(in_button);
-    bool out_button_state = digitalRead(out_button);
+class Turnstile {
+    private:
+        int _inButton;
+        int _outButton;
+        int _maxPeople;
+        int _currentPeople;
+        Servo* _servo;
 
-    if (in_button_state == HIGH && counter_people < 5) {
-        antiSufferingServo(90, myservo);
-        counter_people++;
-        delay(1000);
-        antiSufferingServo(-90, myservo);
-    }
+    public:
+        Turnstile(int inButton, int outButton, int maxPeople)
+            : _inButton(inButton), _outButton(outButton), _maxPeople(maxPeople), _currentPeople(0), _servo(nullptr) {}
 
-    if (out_button_state == HIGH && counter_people > 0) {
-        antiSufferingServo(90, myservo);
-        counter_people--;
-        delay(1000);
-        antiSufferingServo(-90, myservo);
-    }
-    return true;
-}
+        void begin(Servo* servo) {
+            _servo = servo;
+            pinMode(_inButton, INPUT);
+            pinMode(_outButton, INPUT);
+        }
+
+        void update() {
+            if (!_servo) return; // Ensure servo is initialized
+
+            bool inState = digitalRead(_inButton);
+            bool outState = digitalRead(_outButton);
+
+            if (inState == HIGH && _currentPeople < _maxPeople) {
+                moveServo(90);
+                _currentPeople++;
+                delay(1000);
+                moveServo(-90);
+            }
+
+            if (outState == HIGH && _currentPeople > 0) {
+                moveServo(90);
+                _currentPeople--;
+                delay(1000);
+                moveServo(-90);
+            }
+        }
+
+        int getPeopleCount() const { return _currentPeople; }
+
+    private:
+        void moveServo(int angle) {
+            antiSufferingServo(angle, *_servo);
+        }
+};
+
+#endif
