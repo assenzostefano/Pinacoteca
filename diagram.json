@@ -61,26 +61,28 @@
     {
       "type": "wokwi-led",
       "id": "led_green",
-      "top": -170,
-      "left": -70,
+      "top": -40,
+      "left": -210,
       "attrs": {
-        "color": "green"
+        "color": "green",
+        "label": "GATE_G"
       }
     },
     {
       "type": "wokwi-led",
       "id": "led_red",
-      "top": -170,
-      "left": -10,
+      "top": -40,
+      "left": -150,
       "attrs": {
-        "color": "red"
+        "color": "red",
+        "label": "GATE_R"
       }
     },
     {
       "type": "wokwi-resistor",
       "id": "res_led_green",
-      "top": -95,
-      "left": -70,
+      "top": 35,
+      "left": -210,
       "rotate": 90,
       "attrs": {
         "value": "220"
@@ -89,8 +91,8 @@
     {
       "type": "wokwi-resistor",
       "id": "res_led_red",
-      "top": -95,
-      "left": -10,
+      "top": 35,
+      "left": -150,
       "rotate": 90,
       "attrs": {
         "value": "220"
@@ -106,26 +108,28 @@
     {
       "type": "wokwi-led",
       "id": "led_cool",
-      "top": -170,
-      "left": 70,
+      "top": -40,
+      "left": -30,
       "attrs": {
-        "color": "blue"
+        "color": "blue",
+        "label": "COOL"
       }
     },
     {
       "type": "wokwi-led",
       "id": "led_heat",
-      "top": -170,
-      "left": 130,
+      "top": -40,
+      "left": 30,
       "attrs": {
-        "color": "orange"
+        "color": "orange",
+        "label": "HEAT"
       }
     },
     {
       "type": "wokwi-resistor",
       "id": "res_led_cool",
-      "top": -95,
-      "left": 70,
+      "top": 35,
+      "left": -30,
       "rotate": 90,
       "attrs": {
         "value": "220"
@@ -134,8 +138,8 @@
     {
       "type": "wokwi-resistor",
       "id": "res_led_heat",
-      "top": -95,
-      "left": 130,
+      "top": 35,
+      "left": 30,
       "rotate": 90,
       "attrs": {
         "value": "220"
@@ -151,17 +155,18 @@
     {
       "type": "wokwi-led",
       "id": "led_humidifier",
-      "top": -170,
-      "left": 190,
+      "top": -40,
+      "left": 90,
       "attrs": {
-        "color": "white"
+        "color": "white",
+        "label": "HUM"
       }
     },
     {
       "type": "wokwi-resistor",
       "id": "res_led_humidifier",
-      "top": -95,
-      "left": 190,
+      "top": 35,
+      "left": 90,
       "rotate": 90,
       "attrs": {
         "value": "220"
