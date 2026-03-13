@@ -167,7 +167,7 @@ class DisplayPanel {
 
 		void printErrorPage(int currentPeople, float currentTemp, float targetTemp, float currentHum, float targetHum) {
 			char line1[17] = "Error / Fault";
-			char line2[17] = "No errors detected";
+			char line2[17] = "No errors";
 
 			if (currentTemp <= -900.0) {
 				snprintf(line2, sizeof(line2), "Temperature ERR");

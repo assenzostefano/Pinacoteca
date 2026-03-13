@@ -1,3 +1,6 @@
+#ifndef SERVOMOTOR_H
+#define SERVOMOTOR_H
+
 #include <Arduino.h>
 #include <Servo.h>
 
@@ -16,3 +19,5 @@ bool antiSufferingServo(int angle, Servo &s ){
     return true;
   }
 }
+
+#endif
