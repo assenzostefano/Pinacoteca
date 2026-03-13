@@ -8,6 +8,7 @@
 #include "lib/humidity/humidifier.h"
 #include "lib/lighting/photoresistor.h"
 #include "lib/lighting/lighting_control.h"
+#include "lib/display/lcd.h"
 
 // Setup PIN
 const int IS_HUMIDIFIER_LED = 11;
@@ -25,6 +26,13 @@ const int PIN_PLAFONIERE = 10;
 const int PIN_TEMPERATURE_SENSOR = A0;
 const int PIN_PHOTORESISTOR = A1;
 
+const int PIN_LCD_RS = 12;
+const int PIN_LCD_EN = 13;
+const int PIN_LCD_D4 = A2;
+const int PIN_LCD_D5 = A3;
+const int PIN_LCD_D6 = A4;
+const int PIN_LCD_D7 = A5;
+
 Servo myServo;
 
 Turnstile entranceTurnstile(PIN_IN_BUTTON, PIN_OUT_BUTTON, 5); // Max 5 people
@@ -32,6 +40,7 @@ Stoplight trafficLight(PIN_GREEN_LIGHT, PIN_RED_LIGHT);
 Thermostat mainThermostat(PIN_TEMPERATURE_SENSOR, 20.0, PIN_YELLOW_LIGHT, PIN_BLU_LIGHT); // Target 20°C
 LightingControl galleryLighting(PIN_PHOTORESISTOR, PIN_PLAFONIERE, 200); // Target 200 LUX
 HumidifierControl galleryHumidifier(IS_HUMIDIFIER_LED, 65.0); // Target 65% humidity
+DisplayPanel galleryDisplay(PIN_LCD_RS, PIN_LCD_EN, PIN_LCD_D4, PIN_LCD_D5, PIN_LCD_D6, PIN_LCD_D7, 5);
 
 void setup() {
     Serial.begin(9600);
@@ -45,6 +54,7 @@ void setup() {
     mainThermostat.begin(); // Initialize the thermostat
     galleryLighting.begin(); // Initialize lighting control
     galleryHumidifier.begin(); // Initialize humidity control
+    galleryDisplay.begin(); // Initialize LCD display
 }
 
 void loop() {
@@ -65,4 +75,7 @@ void loop() {
 
     // Humidity Control (target 65%)
     galleryHumidifier.update();
+
+    // LCD Display
+    galleryDisplay.update(currentPeople, mainThermostat, galleryHumidifier, galleryLighting);
 }
