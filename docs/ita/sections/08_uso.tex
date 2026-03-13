@@ -1,0 +1,30 @@
+\chapter{Istruzioni d'uso}
+
+\section{Build dei test}
+Per eseguire i test unitari:
+\begin{lstlisting}[style=cppstyle]
+make test
+\end{lstlisting}
+Questo comando invoca lo script e produce l'eseguibile di test nella cartella \texttt{test/build}.
+
+Per pulire:
+\begin{lstlisting}[style=cppstyle]
+make test-clean
+\end{lstlisting}
+La pulizia e consigliata quando si cambiano toolchain o si aggiornano le dipendenze.
+
+\section{Compilazione Arduino}
+Per compilare lo sketch tramite lo script:
+\begin{lstlisting}[style=cppstyle]
+./test/run_tests.sh --with-arduino --board arduino:avr:uno
+\end{lstlisting}
+Questa modalita esegue prima i test unitari e poi compila lo sketch, riducendo il rischio di caricare un firmware non verificato.
+
+Per caricare sulla board reale:
+\begin{lstlisting}[style=cppstyle]
+./test/run_tests.sh --upload --board arduino:avr:uno --port /dev/ttyACM0
+\end{lstlisting}
+Prima dell'upload, verificare che la porta seriale sia corretta.
+
+\section{Simulazione Wokwi}
+Il cablaggio di simulazione e definito in \texttt{diagram.json}. Aprire il progetto in Wokwi e avviare la simulazione per vedere il comportamento complessivo. La simulazione e utile per validare il flusso senza hardware fisico.

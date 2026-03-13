@@ -1,0 +1,20 @@
+\chapter{Timing e prestazioni}
+
+Questa sezione descrive le tempistiche chiave del firmware e le motivazioni dietro alle scelte temporali.
+
+\section{Frequenze di aggiornamento}
+\begin{itemize}
+  \item \textbf{Display}: refresh ogni 1 secondo, cambio pagina ogni 5 secondi.
+  \item \textbf{Termostato}: verifica continua con pausa anti-toggle di 5 secondi.
+  \item \textbf{Turnstile}: risposta immediata ai pulsanti, con delay di 1 secondo per simulare il passaggio.
+\end{itemize}
+
+\section{Motivazioni}
+\begin{itemize}
+  \item Il refresh LCD a 1 secondo evita flicker e riduce scritture ridondanti.
+  \item La pausa del termostato stabilizza il comportamento vicino alla soglia.
+  \item Il delay sul tornello evita doppi conteggi ravvicinati.
+\end{itemize}
+
+\section{Impatto sul loop}
+La sequenza dei moduli e breve e deterministica. L'unico delay intenzionale e quello del tornello, scelto per riprodurre l'apertura fisica. In un'evoluzione futura, questo delay puo essere sostituito da una gestione non bloccante basata su \texttt{millis()}.

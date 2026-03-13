@@ -1,0 +1,37 @@
+\chapter{Rischi e failure modes}
+
+Questa sezione identifica i principali rischi tecnici e le contromisure implementate. L'obiettivo e dimostrare consapevolezza dei failure modes e una strategia di mitigazione realistica.
+
+\section{Rischi sensori}
+\small
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{6.2cm}>{\raggedright\arraybackslash}p{5.2cm}@{}}
+\toprule
+Rischio & Effetto & Mitigazione \\
+\midrule
+NTC scollegato o in corto & Lettura errata o infinita & Valore sentinella \texttt{-999.0}, uscite spente \\
+DHT22 non risponde & Umidita non valida & Controllo disattivato, errore mostrato su LCD \\
+Fotoresistenza saturata & Lux estremo & Valori clampati (0 o 9999) per evitare divisioni per zero \\
+Pulsanti rumorosi & Conteggio errato & Soglie di capienza e logica di incremento/decremento \\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\section{Rischi attuatori}
+\small
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{6.2cm}>{\raggedright\arraybackslash}p{5.2cm}@{}}
+\toprule
+Rischio & Effetto & Mitigazione \\
+\midrule
+Servo oltre corsa & Stress meccanico & \texttt{antiSufferingServo} blocca oltre 0--180 \\
+Toggle rapido clima & Usura attuatori & Pausa temporale prima del cambio stato \\
+PWM errato & Illuminazione instabile & PWM sempre in range 0--255 \\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\section{Rischi di integrazione}
+\begin{itemize}
+  \item \textbf{Dipendenze librerie}: mitigato con API semplici e mock locali per test.
+  \item \textbf{Incoerenza stati}: mitigata con sequenza fissa nel \texttt{loop()}.
+  \item \textbf{Diagnostica insufficiente}: mitigata con pagina errori su LCD e log Serial.
+\end{itemize}

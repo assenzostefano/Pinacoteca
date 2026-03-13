@@ -1,0 +1,17 @@
+\chapter{Calibrazione e limiti di simulazione}
+
+Questa sezione descrive aspetti di calibrazione software e limiti della simulazione.
+
+\section{Calibrazione software}
+\begin{itemize}
+  \item \textbf{Temperatura}: il calcolo NTC usa parametri standard (BETA, RL10). La precisione reale dipende dal sensore e dal cablaggio, ma in simulazione il modello e stabile.
+  \item \textbf{Umidita}: il DHT22 in simulazione restituisce valori ideali; in ambiente reale e consigliata una calibrazione empirica.
+  \item \textbf{Lux}: la conversione da fotoresistenza e approssimata; il target in lux e un riferimento software piu che una misura certificata.
+\end{itemize}
+
+\section{Limiti della simulazione}
+\begin{itemize}
+  \item Il PWM e semplificato (valore pieno quando serve luce).
+  \item Il tempo di risposta dei sensori e idealizzato.
+  \item Alcuni fenomeni reali (rumore, deriva, latenza) non sono riprodotti.
+\end{itemize}

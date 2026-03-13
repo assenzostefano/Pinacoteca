@@ -1,0 +1,20 @@
+\chapter{Timing and performance}
+
+This section describes key firmware timings and the motivations behind temporal choices.
+
+\section{Update frequencies}
+\begin{itemize}
+  \item \textbf{Display}: refresh every 1 second, page change every 5 seconds.
+  \item \textbf{Thermostat}: continuous checks with a 5-second anti-toggle pause.
+  \item \textbf{Turnstile}: immediate response to buttons, with a 1-second delay to simulate passage.
+\end{itemize}
+
+\section{Motivations}
+\begin{itemize}
+  \item LCD refresh at 1 second avoids flicker and reduces redundant writes.
+  \item The thermostat pause stabilizes behavior near the threshold.
+  \item The turnstile delay avoids rapid double counting.
+\end{itemize}
+
+\section{Impact on the loop}
+The module sequence is short and deterministic. The only intentional delay is in the turnstile, chosen to represent physical opening. In a future evolution, this delay can be replaced by a non-blocking \texttt{millis()}-based state machine.

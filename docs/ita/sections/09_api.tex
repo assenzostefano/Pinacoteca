@@ -1,0 +1,75 @@
+\chapter{Appendice: API pubbliche}
+
+Questa appendice riassume le principali classi e funzioni esposte dai moduli. Le API sono progettate per essere minimali e facili da testare, con un pattern comune \texttt{begin()} + \texttt{update()} per i moduli di controllo.
+
+\section{Turnstile}
+Gestisce il conteggio persone e l'attuazione del servo in base agli ingressi dei pulsanti.
+\begin{itemize}
+  \item \texttt{Turnstile(int inButton, int outButton, int maxPeople)}
+  \item \texttt{void begin(Servo* servo)}
+  \item \texttt{void update()}
+  \item \texttt{int getPeopleCount() const}
+\end{itemize}
+
+\section{Stoplight}
+Traduce la capienza in un segnale visivo rosso/verde.
+\begin{itemize}
+  \item \texttt{Stoplight(int greenPin, int redPin)}
+  \item \texttt{void begin()}
+  \item \texttt{void update(int currentPeople, int maxPeople)}
+\end{itemize}
+
+\section{Thermostat}
+Controlla riscaldamento e raffreddamento con tolleranza e pausa anti-toggle.
+\begin{itemize}
+  \item \texttt{Thermostat(int sensorPin, float desiredTemperature, int}\\
+        \texttt{heatingPin, int coolingPin)}
+  \item \texttt{void begin()}
+  \item \texttt{bool update()}
+  \item \texttt{void setTargetTemperature(float newTarget)}
+  \item \texttt{float getTargetTemperature() const}
+  \item \texttt{float getCurrentTemperature() const}
+\end{itemize}
+
+\section{HumidifierControl}
+Controlla l'umidita con gestione del valore sentinella in caso di errore.
+\begin{itemize}
+  \item \texttt{HumidifierControl(int humidifierPin, float targetHumidity)}
+  \item \texttt{void begin()}
+  \item \texttt{bool update()}
+  \item \texttt{void setTargetHumidity(float newHumidityTarget)}
+  \item \texttt{float getTargetHumidity() const}
+  \item \texttt{float getCurrentHumidity() const}
+\end{itemize}
+
+\section{LightingControl}
+Regola la luce in base al target di lux tramite PWM.
+\begin{itemize}
+  \item \texttt{LightingControl(int sensorPin, int dimmerPin, int targetLux)}
+  \item \texttt{void begin()}
+  \item \texttt{bool update()}
+  \item \texttt{void setTargetLux(int newLuxTarget)}
+  \item \texttt{int getTargetLux() const}
+  \item \texttt{float getCurrentLux() const}
+\end{itemize}
+
+\section{DisplayPanel}
+Gestisce la UI LCD con pagine a rotazione e messaggi di errore.
+\begin{itemize}
+  \item \texttt{DisplayPanel(int rs, int en, int d4, int d5, int d6,}\\
+        \texttt{int d7, int maxPeople)}
+  \item \texttt{void begin()}
+  \item \texttt{void update(int currentPeople, Thermostat\&,}\\
+        \texttt{HumidifierControl\&, LightingControl\&)}
+\end{itemize}
+
+\section{Funzioni di utilita}
+Primitive riusabili per I/O e letture sensori.
+\begin{itemize}
+  \item \texttt{bool led(int pin, bool state)}
+  \item \texttt{bool ledDimming(int pin, int pwm)}
+  \item \texttt{float readTemperatureCelsius(int sensorPin)}
+  \item \texttt{float readHumidity()}
+  \item \texttt{float readLux(int light\_sensor\_pin)}
+  \item \texttt{bool antiSufferingServo(int angle, Servo\& s)}
+\end{itemize}

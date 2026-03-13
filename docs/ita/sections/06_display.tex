@@ -1,0 +1,21 @@
+\chapter{Display LCD}
+
+Il display 16x2 usa un layer di astrazione definito in \texttt{display.h} (classe \texttt{DisplayInterface}) e la logica applicativa in \texttt{lcd.h} (classe \texttt{DisplayPanel}). Questa separazione permette di testare la logica senza dipendere direttamente dall'hardware.
+
+\section{Pagine}
+Il pannello ruota tre pagine ogni 5 secondi:
+\begin{itemize}
+  \item \textbf{Data/Ora}: calcolata a partire da \texttt{\_\_DATE\_\_}, \texttt{\_\_TIME\_\_} e \texttt{millis()}.
+  \item \textbf{Stato}: temperatura, umidita e conteggio persone.
+  \item \textbf{Diagnostica}: messaggi di errore o anomalie.
+\end{itemize}
+La pagina errori mostra in modo prioritario le condizioni critiche, facilitando l'intervento rapido.
+
+\section{Calcolo data e ora}
+Non essendo presente un RTC, l'orario e calcolato combinando il timestamp di compilazione con l'incremento di \texttt{millis()}. La base e determinata al costruttore, cosi da offrire una data iniziale coerente e un avanzamento temporale continuo.
+
+\section{Aggiornamento}
+Il refresh e limitato a 1 secondo per evitare flicker. Ogni update legge i valori dai moduli \texttt{Thermostat}, \texttt{HumidifierControl} e \texttt{LightingControl}. La pagina cambia ogni 5 secondi per lasciare il tempo di leggere ciascuna informazione.
+
+\section{Sicurezza e robustezza}
+Se un valore sensore e invalido, il display mostra \texttt{ERR} o un messaggio esplicito. Questo evita interpretazioni errate e rende evidenti i guasti.

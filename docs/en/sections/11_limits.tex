@@ -1,0 +1,18 @@
+\chapter{Known limits and roadmap}
+
+\section{Current limits}
+\begin{itemize}
+  \item PWM lighting control in simulation uses a fixed value due to Wokwi limits.
+  \item The turnstile uses a blocking 1-second delay during opening.
+  \item Time is estimated without an RTC, based on \texttt{\_\_DATE\_\_} and \texttt{\_\_TIME\_\_}.
+  \item No hardware/software debounce filters are implemented for buttons.
+\end{itemize}
+
+\section{Roadmap}
+\begin{itemize}
+  \item Introduce an RTC for accurate date/time.
+  \item Real PWM control with lux feedback (PID or proportional control).
+  \item Non-blocking turnstile control with a state machine.
+  \item Software debounce for buttons and event logic.
+  \item Expand tests with stress and timing cases.
+\end{itemize}

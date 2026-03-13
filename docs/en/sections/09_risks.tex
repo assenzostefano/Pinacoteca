@@ -1,0 +1,37 @@
+\chapter{Risks and failure modes}
+
+This section identifies the main technical risks and implemented countermeasures. The goal is to demonstrate awareness of failure modes and a realistic mitigation strategy.
+
+\section{Sensor risks}
+\small
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{6.2cm}>{\raggedright\arraybackslash}p{5.2cm}@{}}
+\toprule
+Risk & Effect & Mitigation \\
+\midrule
+NTC disconnected or shorted & Incorrect or infinite reading & Sentinel value \texttt{-999.0}, outputs off \\
+DHT22 not responding & Invalid humidity & Control disabled, error shown on LCD \\
+Photoresistor saturated & Extreme lux & Values clamped (0 or 9999) to avoid division by zero \\
+Noisy buttons & Incorrect counting & Capacity thresholds and increment/decrement logic \\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\section{Actuator risks}
+\small
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{6.2cm}>{\raggedright\arraybackslash}p{5.2cm}@{}}
+\toprule
+Risk & Effect & Mitigation \\
+\midrule
+Servo overtravel & Mechanical stress & \texttt{antiSufferingServo} blocks beyond 0--180 \\
+Rapid climate toggling & Actuator wear & Time pause before switching state \\
+Wrong PWM & Unstable lighting & PWM always in range 0--255 \\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\section{Integration risks}
+\begin{itemize}
+  \item \textbf{Library dependencies}: mitigated with simple APIs and local mocks for tests.
+  \item \textbf{State inconsistency}: mitigated with a fixed sequence in \texttt{loop()}.
+  \item \textbf{Insufficient diagnostics}: mitigated with an LCD error page and Serial logs.
+\end{itemize}

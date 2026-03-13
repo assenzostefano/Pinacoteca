@@ -1,0 +1,30 @@
+\chapter{Design decisions and safety}
+
+This chapter explains the technical choices and the implemented safety measures. The goal is a robust, predictable, and easily testable firmware.
+
+\section{Modularity and responsibility}
+Splitting the code into modules under \texttt{lib/} addresses three needs: isolate sensor logic, simplify reuse, and enable focused unit tests. Each module has a single responsibility and a minimal API surface.
+
+The separation between \texttt{begin()} and \texttt{update()} distinguishes hardware configuration from runtime behavior. This reduces side effects and makes logic observable even in tests using mocks.
+
+\section{Sensor error handling}
+For analog and digital sensors, a consistent sentinel value is used: \texttt{-999.0} for read errors. This choice makes it easy to identify errors downstream without exceptions or complex state.
+
+Each control module validates readings before actuating. If input is invalid, the module turns outputs off (fail-safe) and returns \texttt{false}. This prevents silent error propagation.
+
+\section{Actuator protection and stability}
+In the servo module, \texttt{antiSufferingServo} prevents motion beyond mechanical limits, logging a message on Serial. This avoids stalls or motor stress.
+
+The thermostat introduces a pause, defined by \texttt{\_pauseTime}, to avoid rapid toggling when readings oscillate near the threshold. This improves reliability and actuator lifespan.
+
+Lighting control uses a PWM range limited to 0--255. In Wokwi simulation, the value is forced to 255 when light is needed, ensuring visual consistency and reducing ambiguity in tests.
+
+\section{Interface and communication choices}
+The LCD is updated at most once per second and rotates pages every 5 seconds. This policy protects against excessive writes, avoids flicker, and preserves readability.
+
+The error page summarizes operational issues (humidity high/low, abnormal temperature, people count out of range) with short texts. The choice is oriented toward quick diagnostics in real environments.
+
+\section{Testing strategy}
+The test suite validates edge conditions: sensor limits, actuator limits, state transitions, and safety fallback. Each test checks both logical output and side effects on mocked I/O.
+
+Local Arduino mocks allow tests to run on a PC, speeding up feedback and reducing hardware dependence. This makes the project more maintainable and suitable for future evolution.

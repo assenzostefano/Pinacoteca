@@ -1,0 +1,34 @@
+\chapter{Architettura}
+
+Il firmware segue un ciclo di esecuzione deterministico: inizializzazione in \texttt{setup()} e aggiornamento periodico dei moduli in \texttt{loop()}. Ogni modulo espone i metodi \texttt{begin()} e \texttt{update()} per separare configurazione e logica runtime, riducendo il rischio di stati inconsistenti.
+
+\section{Schema logico}
+\begin{itemize}
+  \item \textbf{Turnstile}: legge i pulsanti IN/OUT, aggiorna il conteggio persone e muove il servo.
+  \item \textbf{Stoplight}: visualizza su LED verde/rosso la disponibilita di posti.
+  \item \textbf{Thermostat}: legge il sensore NTC e decide riscaldamento/raffreddamento.
+  \item \textbf{LightingControl}: legge la fotoresistenza e regola il dimmer.
+  \item \textbf{HumidifierControl}: legge il DHT22 e accende o spegne il controllo umidita.
+  \item \textbf{DisplayPanel}: alterna pagine LCD con stato, data/ora e diagnostica.
+\end{itemize}
+
+\section{Flusso dati}
+Il flusso segue tre passaggi costanti:
+\begin{enumerate}
+  \item \textbf{Acquisizione}: letture analogiche o digitali dai sensori.
+  \item \textbf{Validazione}: controllo di errori e filtri sulle soglie.
+  \item \textbf{Attuazione}: LED, PWM o servo in base alle decisioni.
+\end{enumerate}
+Il display aggrega gli stati dei moduli e presenta una vista sintetica per l'operatore.
+
+\section{Cicli temporali}
+Alcuni moduli usano tempi interni per evitare transizioni rapide o flicker. In particolare:
+\begin{itemize}
+  \item il termostato applica una pausa prima di cambiare modalita;
+  \item il display limita il refresh a 1 secondo e cambia pagina ogni 5 secondi.
+\end{itemize}
+Queste scelte evitano oscillazioni e migliorano la stabilita percepita.
+
+\section{Parametri principali}
+I valori di target sono configurati nel file principale:\newline
+\texttt{20.0 C} per temperatura, \texttt{65\%} per umidita, \texttt{200 lux} per illuminazione, \texttt{5 persone} come capienza massima.

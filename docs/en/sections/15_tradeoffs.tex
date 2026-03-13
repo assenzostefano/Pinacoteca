@@ -1,0 +1,24 @@
+\chapter{Trade-offs and design choices}
+
+This section summarizes some evaluated alternatives and the motivations for the adopted solution, limited to software aspects.
+
+\section{Time management}
+\begin{itemize}
+  \item \textbf{Choice}: use \texttt{delay} in the turnstile and \texttt{millis()} for display/thermostat.
+  \item \textbf{Motivation}: simple to understand and sufficient in simulation.
+  \item \textbf{Trade-off}: \texttt{delay} is blocking; an FSM would be more scalable.
+\end{itemize}
+
+\section{Sentinel values for errors}
+\begin{itemize}
+  \item \textbf{Choice}: \texttt{-999.0} for sensor errors.
+  \item \textbf{Motivation}: easy to recognize and propagate.
+  \item \textbf{Trade-off}: requires explicit checks in each module.
+\end{itemize}
+
+\section{Modular architecture}
+\begin{itemize}
+  \item \textbf{Choice}: independent modules with small APIs.
+  \item \textbf{Motivation}: facilitates testing and maintenance.
+  \item \textbf{Trade-off}: higher number of files and interfaces to maintain.
+\end{itemize}

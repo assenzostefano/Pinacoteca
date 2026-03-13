@@ -1,0 +1,113 @@
+\chapter{Step-by-step implementation}
+
+This chapter describes the operational flow for each feature, with code fragments and detailed explanations.
+
+\section{Global initialization}
+In the main file, modules are instantiated with key parameters and centrally defined pins. This choice makes the configuration easy to read.
+
+\begin{lstlisting}[style=cppstyle]
+const int PIN_SERVOMOTOR = 3;
+const int PIN_GREEN_LIGHT = 4;
+const int PIN_RED_LIGHT = 5;
+
+Turnstile entranceTurnstile(PIN_IN_BUTTON, PIN_OUT_BUTTON, 5);
+Stoplight trafficLight(PIN_GREEN_LIGHT, PIN_RED_LIGHT);
+Thermostat mainThermostat(PIN_TEMPERATURE_SENSOR, 20.0, PIN_YELLOW_LIGHT, PIN_BLU_LIGHT);
+LightingControl galleryLighting(PIN_PHOTORESISTOR, PIN_PLAFONIERE, 200);
+HumidifierControl galleryHumidifier(IS_HUMIDIFIER_LED, 65.0);
+DisplayPanel galleryDisplay(PIN_LCD_RS, PIN_LCD_EN, PIN_LCD_D4, PIN_LCD_D5, PIN_LCD_D6, PIN_LCD_D7, 5);
+\end{lstlisting}
+
+\paragraph{Rationale} Targets and capacity are centralized to reduce errors and enable quick calibration.
+
+\section{Turnstile and people counting}
+The turnstile reads buttons and moves the servo with mechanical protection.
+
+\begin{lstlisting}[style=cppstyle]
+if (inState == HIGH && _currentPeople < _maxPeople) {
+    moveServo(90);
+    _currentPeople++;
+    delay(1000);
+    moveServo(-90);
+}
+\end{lstlisting}
+
+\paragraph{Steps} 1) read inputs, 2) check capacity, 3) open servo, 4) update counter, 5) close servo.
+
+\paragraph{Safety} The counter prevents entries beyond the limit and \texttt{antiSufferingServo} prevents out-of-range movement.
+
+\section{Capacity stoplight}
+The stoplight translates the count into an immediately readable state.
+
+\begin{lstlisting}[style=cppstyle]
+if (currentPeople < maxPeople) {
+    led(_greenPin, HIGH);
+    led(_redPin, LOW);
+} else {
+    led(_greenPin, LOW);
+    led(_redPin, HIGH);
+}
+\end{lstlisting}
+
+\paragraph{Rationale} Two states reduce ambiguity for the operator.
+
+\section{Thermostat}
+The thermostat reads temperature and decides the action with tolerance and an anti-toggle pause.
+
+\begin{lstlisting}[style=cppstyle]
+if (temperature_celsius < (_desiredTemperature - tolerance)) {
+    desired_action = 1;
+} else if (temperature_celsius > (_desiredTemperature + tolerance)) {
+    desired_action = 2;
+} else {
+    desired_action = 0;
+}
+\end{lstlisting}
+
+\paragraph{Steps} 1) read sensor, 2) validate, 3) compare with target, 4) choose action, 5) actuate with pause.
+
+\paragraph{Safety} On invalid reading, both outputs are turned off and the method returns \texttt{false}.
+
+\section{Humidity control}
+The module compares the DHT22 reading with the target and a fixed tolerance.
+
+\begin{lstlisting}[style=cppstyle]
+if (currentHumidity > (_targetHumidity + tolerance)) {
+    led(_humidifierPin, HIGH);
+} else if (currentHumidity < (_targetHumidity - tolerance)) {
+    led(_humidifierPin, LOW);
+} else {
+    led(_humidifierPin, LOW);
+}
+\end{lstlisting}
+
+\paragraph{Safety} If the sensor returns \texttt{NAN}, the reading becomes \texttt{-999.0} and the module turns the output off.
+
+\section{Lighting}
+Lighting control uses a simple model to translate the analog reading into lux and decide PWM.
+
+\begin{lstlisting}[style=cppstyle]
+float missingLight = _targetLux - currentLux;
+if (missingLight > 0) {
+    pwm_value = 255;
+} else {
+    pwm_value = 0;
+}
+ledDimming(_dimmerPin, pwm_value);
+\end{lstlisting}
+
+\paragraph{Rationale} In Wokwi simulation a full PWM is used when light is needed, making the response evident.
+
+\section{LCD display}
+The display rotates pages with different information and shows errors with priority.
+
+\begin{lstlisting}[style=cppstyle]
+if (now - _lastPageChange >= 5000) {
+    _page = (_page + 1) % 3;
+    _lastPageChange = now;
+}
+\end{lstlisting}
+
+\paragraph{Steps} 1) limit refresh, 2) rotate page, 3) read values from modules, 4) print selected page.
+
+\paragraph{Safety} Invalid readings are shown as \texttt{ERR} or error messages, preventing misinterpretation.

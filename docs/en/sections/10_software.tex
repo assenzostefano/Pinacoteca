@@ -1,0 +1,27 @@
+\chapter{Software and dependencies}
+
+\section{Tools}
+\begin{itemize}
+  \item Arduino IDE or arduino-cli for compilation and upload.
+  \item CMake >= 3.16 for tests.
+  \item C++17 compiler for PC tests.
+\end{itemize}
+Using arduino-cli enables automation and integration with test pipelines.
+
+\section{Libraries}
+\begin{itemize}
+  \item Servo (Arduino)
+  \item LiquidCrystal (Arduino)
+  \item DHT (for DHT22)
+  \item GoogleTest (tests only)
+\end{itemize}
+Arduino libraries are used via standard headers, while GoogleTest is downloaded dynamically during CMake configuration.
+
+\section{Repository}
+The project is organized as:
+\begin{itemize}
+  \item \texttt{Pinacoteca.ino} for firmware;
+  \item \texttt{lib/} for modules;
+  \item \texttt{test/} for unit tests;
+  \item \texttt{diagram.json} for Wokwi simulation.
+\end{itemize}

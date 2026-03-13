@@ -1,0 +1,24 @@
+\chapter{Trade-off e scelte progettuali}
+
+Questa sezione riassume alcune alternative valutate e le motivazioni della soluzione adottata, limitandosi agli aspetti software.
+
+\section{Gestione del tempo}
+\begin{itemize}
+  \item \textbf{Scelta}: uso di \texttt{delay} nel tornello e \texttt{millis()} per display/termostato.
+  \item \textbf{Motivazione}: semplice da comprendere e sufficiente in simulazione.
+  \item \textbf{Trade-off}: il \texttt{delay} e bloccante; una FSM sarebbe piu scalabile.
+\end{itemize}
+
+\section{Valori sentinella per errori}
+\begin{itemize}
+  \item \textbf{Scelta}: \texttt{-999.0} per errori sensori.
+  \item \textbf{Motivazione}: facile da riconoscere e propagare.
+  \item \textbf{Trade-off}: richiede controllo esplicito in ogni modulo.
+\end{itemize}
+
+\section{Architettura modulare}
+\begin{itemize}
+  \item \textbf{Scelta}: moduli indipendenti con API piccole.
+  \item \textbf{Motivazione}: facilita test e manutenzione.
+  \item \textbf{Trade-off}: maggiore numero di file e interfacce da mantenere.
+\end{itemize}

@@ -1,0 +1,34 @@
+\chapter{Architecture}
+
+The firmware follows a deterministic execution cycle: initialization in \texttt{setup()} and periodic module updates in \texttt{loop()}. Each module exposes \texttt{begin()} and \texttt{update()} to separate configuration from runtime logic, reducing the risk of inconsistent states.
+
+\section{Logical layout}
+\begin{itemize}
+  \item \textbf{Turnstile}: reads IN/OUT buttons, updates the people count, and moves the servo.
+  \item \textbf{Stoplight}: displays availability using green/red LEDs.
+  \item \textbf{Thermostat}: reads the NTC sensor and decides heating/cooling.
+  \item \textbf{LightingControl}: reads the photoresistor and adjusts the dimmer.
+  \item \textbf{HumidifierControl}: reads the DHT22 and turns humidity control on or off.
+  \item \textbf{DisplayPanel}: alternates LCD pages with status, date/time, and diagnostics.
+\end{itemize}
+
+\section{Data flow}
+The flow follows three constant steps:
+\begin{enumerate}
+  \item \textbf{Acquisition}: analog or digital readings from sensors.
+  \item \textbf{Validation}: error checks and threshold filters.
+  \item \textbf{Actuation}: LED, PWM, or servo based on decisions.
+\end{enumerate}
+The display aggregates module states and presents a concise view for the operator.
+
+\section{Timing cycles}
+Some modules use internal timing to avoid rapid transitions or flicker. In particular:
+\begin{itemize}
+  \item the thermostat applies a pause before switching mode;
+  \item the display caps refresh at 1 second and switches page every 5 seconds.
+\end{itemize}
+These choices prevent oscillations and improve perceived stability.
+
+\section{Key parameters}
+Target values are configured in the main file:\newline
+\texttt{20.0 C} for temperature, \texttt{65\%} for humidity, \texttt{200 lux} for lighting, \texttt{5 people} as the maximum capacity.

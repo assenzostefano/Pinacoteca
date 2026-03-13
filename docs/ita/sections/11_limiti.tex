@@ -1,0 +1,18 @@
+\chapter{Limiti noti e roadmap}
+
+\section{Limiti attuali}
+\begin{itemize}
+  \item Il controllo PWM della luce in simulazione usa un valore fisso per limiti Wokwi.
+  \item Il tornello usa delay bloccante di 1 secondo durante l'apertura.
+  \item L'orario e stimato senza RTC, basato su \texttt{\_\_DATE\_\_} e \texttt{\_\_TIME\_\_}.
+  \item Non sono implementati filtri anti-rimbalzo hardware/software sui pulsanti.
+\end{itemize}
+
+\section{Roadmap}
+\begin{itemize}
+  \item Introduzione di un RTC per data/ora precise.
+  \item Controllo PWM reale con feedback lux (PID o controllo proporzionale).
+  \item Gestione non bloccante del tornello con macchina a stati.
+  \item Debounce software per pulsanti e logica di evento.
+  \item Espansione test con casi di stress e timing.
+\end{itemize}

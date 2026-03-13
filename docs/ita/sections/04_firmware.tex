@@ -1,0 +1,38 @@
+\chapter{Firmware}
+
+Il file principale \texttt{Pinacoteca.ino} istanzia i moduli e definisce i pin. La logica e organizzata in due fasi ben distinte, in modo da avere un ciclo di esecuzione prevedibile e facilmente verificabile.
+
+\section{Setup}
+Durante \texttt{setup()} vengono inizializzati:
+\begin{itemize}
+  \item seriale per debug e diagnostica;
+  \item servo e tornello con posizione iniziale nota;
+  \item semaforo, termostato, illuminazione e umidita;
+  \item pannello LCD con messaggio di avvio.
+\end{itemize}
+La scelta di inizializzare prima il servo e poi gli altri moduli riduce il rischio di movimenti non voluti durante la configurazione dei pin.
+
+\section{Loop}
+Nel ciclo principale, ogni modulo aggiorna il proprio stato in una sequenza coerente:
+\begin{enumerate}
+  \item aggiornamento tornello e conteggio persone;
+  \item aggiornamento semaforo in base al limite;
+  \item regolazione clima (riscaldamento o raffreddamento);
+  \item regolazione illuminazione;
+  \item controllo umidita;
+  \item refresh display con dati correnti.
+\end{enumerate}
+L'ordine e intenzionale: si acquisiscono prima gli input umani, poi si aggiornano gli indicatori di stato e infine si aggiorna l'interfaccia LCD. In questo modo il display riflette l'ultima decisione del ciclo.
+
+\section{Gestione errori}
+I moduli che leggono sensori controllano la validita della misura. Se l'input non e valido, le uscite sono poste in stato sicuro e la funzione di aggiornamento ritorna \texttt{false}. Questo comportamento e coerente con la filosofia fail-safe del progetto.
+
+\section{Configurazione dei target}
+I target sono passati ai costruttori dei moduli:
+\begin{itemize}
+  \item \texttt{Thermostat}: temperatura desiderata in gradi Celsius.
+  \item \texttt{LightingControl}: illuminamento target in lux.
+  \item \texttt{HumidifierControl}: umidita target in percento.
+  \item \texttt{Turnstile}: numero massimo di persone.
+\end{itemize}
+La configurazione centralizzata nel file principale rende immediata la taratura dell'impianto senza modificare i singoli moduli.

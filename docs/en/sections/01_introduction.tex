@@ -1,0 +1,19 @@
+\chapter{Introduction}
+
+The \textbf{Pinacoteca} project delivers a management system for a gallery, covering access control, climate, humidity, lighting, and LCD visualization. The goal is to integrate sensors and actuators into a modular Arduino firmware, with unit tests runnable on a PC and a repeatable build flow.
+
+This documentation is meant to describe both the technical solution and the rationale behind design choices. Each section dives into the behavior step by step, highlighting safety aspects, adopted trade-offs, and the reasoning behind the exposed APIs.
+
+The main features are:
+\begin{itemize}
+  \item counting entrances and exits with a servo-assisted turnstile;
+  \item indicating available capacity with a LED traffic light;
+  \item temperature regulation with heating or cooling modes;
+  \item humidity control with threshold and actuator (LED in simulation);
+  \item ambient light control with a photoresistor and dimmer;
+  \item a 16x2 LCD panel with informative pages.
+\end{itemize}
+
+The code is structured into independent modules under \texttt{lib/}. This choice reduces cross-dependencies, makes behavior easier to read, and simplifies validation through unit tests.
+
+The system is built around reliability: if a sensor reading is invalid, control modules switch to a fallback behavior that turns outputs off, avoiding unsafe or non-deterministic states.

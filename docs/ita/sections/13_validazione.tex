@@ -1,0 +1,28 @@
+\chapter{Validazione software e simulazione}
+
+Questa sezione descrive come validare il comportamento del firmware in simulazione e su ambiente di test, senza entrare in aspetti elettrici.
+
+\section{Strategia di validazione}
+\begin{itemize}
+  \item \textbf{Unit test}: coprono le funzioni di base e la logica dei moduli.
+  \item \textbf{Simulazione Wokwi}: verifica end-to-end del ciclo \texttt{loop()} con sensori e attuatori virtuali.
+  \item \textbf{Test di regressione}: esecuzione ripetuta della suite dopo modifiche al codice.
+\end{itemize}
+
+\section{Procedure di validazione in simulazione}
+\begin{enumerate}
+  \item Avviare la simulazione e verificare l'inizializzazione del display.
+  \item Premere i pulsanti IN/OUT e verificare conteggio persone e semaforo.
+  \item Forzare temperature alte/basse e osservare LED di heating/cooling.
+  \item Modificare umidita e osservare attivazione del controllo.
+  \item Oscurare o illuminare la fotoresistenza e verificare la plafoniera.
+  \item Controllare la rotazione delle pagine LCD e i messaggi di errore.
+\end{enumerate}
+
+\section{Criteri di accettazione software}
+\begin{itemize}
+  \item Nessun crash o blocco nel ciclo \texttt{loop()}.
+  \item Tutti i moduli rispondono coerentemente ai valori di input simulati.
+  \item Le condizioni di errore disattivano le uscite e mostrano diagnostica.
+  \item La suite di test e eseguita con esito positivo.
+\end{itemize}

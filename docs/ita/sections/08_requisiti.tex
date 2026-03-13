@@ -1,0 +1,44 @@
+\chapter{Requisiti e tracciabilita}
+
+Questa sezione elenca i requisiti funzionali principali e la loro tracciabilita verso i test unitari. L'obiettivo e dimostrare che le scelte progettuali sono verificate in modo sistematico.
+
+\section{Requisiti funzionali}
+\begin{itemize}
+  \item \textbf{R1} Il sistema deve contare ingressi e uscite con limite massimo configurabile.
+  \item \textbf{R2} Il sistema deve segnalare lo stato di capienza con semaforo verde/rosso.
+  \item \textbf{R3} Il sistema deve controllare temperatura con modalita riscaldamento e raffreddamento.
+  \item \textbf{R4} Il sistema deve controllare l'umidita con soglia e tolleranza.
+  \item \textbf{R5} Il sistema deve controllare l'illuminazione con target in lux.
+  \item \textbf{R6} Il display deve mostrare data/ora, stato e diagnostica.
+  \item \textbf{R7} In caso di errore sensori, gli attuatori devono essere disattivati.
+\end{itemize}
+
+\section{Tracciabilita test}
+\begingroup
+\sloppy
+\hbadness=10000
+\tolerance=10000
+\emergencystretch=1em
+\scriptsize
+\setlength{\tabcolsep}{2pt}
+\renewcommand{\arraystretch}{1.05}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{1.0cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+Req. & Descrizione & Test correlati \\
+\midrule
+R1 & Conteggio persone con limiti & \begin{tabular}[t]{@{}l@{}}\texttt{TurnstileIncrementsAndDecrementsPeople}\\\texttt{TurnstileRespectsMaxPeople}\end{tabular} \\
+R2 & Semaforo capienza & \begin{tabular}[t]{@{}l@{}}\texttt{StoplightBelowMaxSetsGreen}\\\texttt{StoplightAtMaxSetsRed}\end{tabular} \\
+R3 & Clima con heating/cooling & \begin{tabular}[t]{@{}l@{}}\texttt{ThermostatHeatingBranch}\\\texttt{ThermostatCoolingBranch}\end{tabular} \\
+R4 & Controllo umidita & \begin{tabular}[t]{@{}l@{}}\texttt{HumidifierHighHumidityTurnsOnPin}\\\texttt{HumidifierLowHumidityTurnsOffPin}\end{tabular} \\
+R5 & Controllo illuminazione & \begin{tabular}[t]{@{}l@{}}\texttt{LightingControlWritesPwm}\end{tabular} \\
+R6 & Pagine display & \begin{tabular}[t]{@{}l@{}}\texttt{DisplayPanelRotatesPages}\\\texttt{DisplayDatePageHasValidWeekdayPrefix}\end{tabular} \\
+R7 & Fail-safe su errori sensori & \begin{tabular}[t]{@{}l@{}}\texttt{ThermostatSensorErrorTurnsEverythingOff}\\\texttt{HumidifierSensorErrorReturnsFalse}\end{tabular} \\
+\bottomrule
+\end{tabularx}
+\renewcommand{\arraystretch}{1.0}
+\setlength{\tabcolsep}{6pt}
+\normalsize
+\endgroup
+
+\section{Note}
+I test sono eseguiti con mock Arduino, quindi le verifiche si concentrano sui side effect (pin e buffer LCD) e non sull'hardware reale. Questo approccio garantisce rapidita e ripetibilita.

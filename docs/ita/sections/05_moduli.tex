@@ -1,0 +1,57 @@
+\chapter{Moduli software}
+
+Questa sezione descrive in modo dettagliato i moduli presenti in \texttt{lib/}. Ogni modulo e progettato con un'interfaccia minima e una logica interna esplicita, cosi da facilitare sia il riuso sia la verifica attraverso test.
+
+\section{LED}
+\paragraph{Scopo} Il file \texttt{led.h} fornisce primitive di attuazione per scrivere su pin digitali o PWM. Centralizzare queste funzioni evita duplicazioni nei moduli di controllo.
+
+\paragraph{Flusso} \texttt{led(pin, state)} esegue una singola \texttt{digitalWrite} e ritorna \texttt{true}. \texttt{ledDimming(pin, pwm)} esegue \texttt{analogWrite} con lo stesso schema. La semantica di ritorno uniforme semplifica i test.
+
+\paragraph{Sicurezza} Le funzioni non implementano logiche di sicurezza, ma sono utilizzate in un contesto dove i moduli chiamanti validano i propri input. Questo evita che un errore sensore venga trasformato in un attuatore attivo.
+
+\paragraph{Scelte} La decisione di mantenere funzioni semplici e senza stato riduce la complessita e migliora la prevedibilita del comportamento in test con mock.
+
+\section{Servomotore e tornello}
+\paragraph{Scopo} Il modulo \texttt{servomotor.h} protegge il servo tramite \texttt{antiSufferingServo}. Il modulo \texttt{turnstile.h} gestisce ingressi e uscite, mantenendo un contatore di persone.
+
+\paragraph{Flusso} In \texttt{Turnstile::begin} vengono configurati i pin dei pulsanti e si aggancia il servo. In \texttt{update()}, si leggono i pulsanti IN/OUT, si applicano i vincoli di capienza e si muove il servo in apertura e chiusura.
+
+\paragraph{Sicurezza} \texttt{antiSufferingServo} impedisce di superare il range 0--180, logga un messaggio su Serial e ritorna \texttt{false}. Questo riduce il rischio di danni meccanici. Il contatore impedisce ingressi oltre il massimo o uscite sotto zero.
+
+\paragraph{Scelte} L'uso di un contatore interno evita dipendenze esterne e rende il modulo autonomo. Il controllo dei limiti prima della movimentazione del servo e una scelta di sicurezza per evitare attuazioni non necessarie.
+
+\section{Semaforo}
+\paragraph{Scopo} \texttt{stoplight.h} traduce lo stato di capienza in segnali visivi immediati.
+
+\paragraph{Flusso} \texttt{begin()} configura i pin come output. \texttt{update(currentPeople, maxPeople)} decide se accendere il verde o il rosso in base al confronto.
+
+\paragraph{Sicurezza} Non sono previste modalita intermedie: in caso di condizioni non previste, il modulo mantiene sempre una delle due uscite attive, evitando ambiguita per l'operatore.
+
+\paragraph{Scelte} La logica binaria rende il comportamento facile da verificare e minimizza gli errori di interpretazione.
+
+\section{Temperatura e termostato}
+\paragraph{Scopo} \texttt{temperature.h} converte la lettura analogica dell'NTC in gradi Celsius. \texttt{thermostat.h} decide la modalita di clima in base a una soglia centrale con tolleranza.
+
+\paragraph{Flusso} Il lettore di temperatura verifica i valori estremi e ritorna \texttt{-999.0} se rileva un errore. Il termostato legge la temperatura, determina l'azione richiesta e attiva il riscaldamento o il raffreddamento.
+
+\paragraph{Sicurezza} Se la lettura e invalida, il termostato spegne entrambe le uscite e ritorna \texttt{false}. Inoltre, la pausa temporale tra cambi di stato previene il toggling rapido che potrebbe usurare i componenti.
+
+\paragraph{Scelte} La tolleranza di 1.0 C crea una finestra di neutralita che stabilizza il sistema. La pausa e un compromesso tra reattivita e stabilita, adatta a un ambiente reale.
+
+\section{Umidita e controllo}
+\paragraph{Scopo} \texttt{humidity.h} incapsula l'uso del DHT22 e fornisce una lettura di umidita. \texttt{humidifier.h} gestisce l'attuatore in base al target.
+
+\paragraph{Flusso} Il sensore viene inizializzato con \texttt{beginHumiditySensor}. \texttt{readHumidity()} ritorna il valore attuale o \texttt{-999.0} in caso di errore. Il controllo umidita confronta la lettura con il target e applica una tolleranza.
+
+\paragraph{Sicurezza} In caso di errore sensore, l'uscita viene spenta. La tolleranza evita oscillazioni continue intorno al setpoint.
+
+\paragraph{Scelte} L'uso di un valore sentinella unico per gli errori rende semplice l'integrazione con il display e con la diagnostica.
+
+\section{Illuminazione}
+\paragraph{Scopo} \texttt{photoresistor.h} stima il lux da una fotoresistenza. \texttt{lighting\_control.h} regola la plafoniera tramite PWM.
+
+\paragraph{Flusso} La lettura analogica viene trasformata in lux con un modello semplificato. Il controllo calcola la differenza dal target e decide se attivare il PWM.
+
+\paragraph{Sicurezza} Le letture fuori range sono gestite con valori minimi o massimi, evitando divisioni per zero. Il PWM e sempre limitato nel range 0--255.
+
+\paragraph{Scelte} In simulazione Wokwi il PWM e impostato a 255 quando serve luce, per ottenere un comportamento visivo chiaro e prevedibile durante i test.

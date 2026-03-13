@@ -1,0 +1,19 @@
+\chapter{Introduzione}
+
+Il progetto \textbf{Pinacoteca} realizza un sistema di gestione per una galleria con controllo di accessi, clima, umidita, illuminazione e visualizzazione su LCD. L'obiettivo e integrare sensori e attuatori in un firmware Arduino modulare, con test unitari eseguibili su PC e un flusso di build ripetibile.
+
+La documentazione e pensata per descrivere sia la soluzione tecnica sia le motivazioni delle scelte progettuali. Ogni sezione approfondisce il comportamento passo passo, evidenziando i punti di sicurezza, i compromessi adottati e le ragioni dietro alle API esposte.
+
+Le funzionalita principali sono:
+\begin{itemize}
+  \item conteggio ingressi e uscite con tornello servoassistito;
+  \item segnalazione disponibilita posti con semaforo a LED;
+  \item regolazione temperatura con modalita riscaldamento o raffreddamento;
+  \item controllo umidita con soglia e attuatore (LED in simulazione);
+  \item controllo luce ambientale con fotoresistenza e dimmer;
+  \item pannello LCD 16x2 con pagine informative.
+\end{itemize}
+
+Il codice e strutturato in moduli indipendenti dentro la cartella \texttt{lib/}. Questa scelta riduce le dipendenze incrociate, rende il comportamento piu leggibile e semplifica la validazione attraverso test unitari.
+
+Il sistema e costruito con un criterio di affidabilita: se una lettura sensore e invalida, i moduli di controllo adottano un comportamento di fallback che spegne le uscite, evitando stati pericolosi o non deterministici.

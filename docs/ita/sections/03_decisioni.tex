@@ -1,0 +1,30 @@
+\chapter{Decisioni progettuali e sicurezza}
+
+Questo capitolo spiega le scelte tecniche e le misure di sicurezza implementate. L'obiettivo e ottenere un firmware robusto, prevedibile e facilmente testabile.
+
+\section{Modularita e responsabilita}
+La scelta di suddividere il codice in moduli dentro \texttt{lib/} nasce da tre esigenze: isolare la logica dei sensori, semplificare il riuso e abilitare test unitari mirati. Ogni modulo ha un compito unico (single responsibility) e una superficie API ridotta.
+
+La separazione tra \texttt{begin()} e \texttt{update()} permette di distinguere la configurazione hardware dal comportamento runtime. Questo riduce gli effetti collaterali e rende la logica osservabile anche nei test con mock.
+
+\section{Gestione errori sensori}
+Per sensori analogici e digitali si usano valori sentinella coerenti: \texttt{-999.0} per errori di lettura. Questa scelta e intenzionale per rendere immediata l'identificazione di un errore a valle, senza eccezioni o stati complessi.
+
+Ogni modulo di controllo verifica le letture prima di attuare. Se l'input non e valido, il modulo spegne le uscite (fail-safe) e ritorna \texttt{false}. In questo modo un errore non si propaga in modo silenzioso.
+
+\section{Protezione attuatori e stabilita}
+Nel modulo servo, \texttt{antiSufferingServo} impedisce movimenti oltre i limiti meccanici, con un messaggio di log su Serial. Questa protezione evita blocchi o stress del motorino.
+
+Il termostato introduce una pausa, definita da \texttt{\_pauseTime}, per evitare il toggling rapido quando la lettura oscilla vicino alla soglia. Questo migliora affidabilita e durata delle uscite.
+
+Il controllo luci usa un PWM limitato a 0--255. In simulazione Wokwi il valore e forzato a 255 quando serve luce, garantendo coerenza visiva e riducendo ambiguita nei test.
+
+\section{Scelte di interfaccia e comunicazione}
+Il display LCD e aggiornato con frequenza massima di 1 secondo e ruota le pagine ogni 5 secondi. Questa politica protegge dalla scrittura eccessiva, evita flicker e mantiene leggibilita.
+
+La pagina errori sintetizza problemi operativi (umidita alta/bassa, temperatura anomala, conteggio persone fuori range) con testi brevi. La scelta e orientata alla diagnosi rapida in ambienti reali.
+
+\section{Strategia di test}
+La suite di test e pensata per validare le condizioni di bordo: limiti di sensori, limiti attuatori, transizioni di stato e fallback di sicurezza. Ogni test verifica sia l'output logico sia il side effect sugli I/O mockati.
+
+L'uso di mock locali Arduino permette di eseguire i test su PC, velocizzando il ciclo di feedback e riducendo la dipendenza dall'hardware. Questa scelta rende il progetto piu mantenibile e adatto a evoluzioni future.

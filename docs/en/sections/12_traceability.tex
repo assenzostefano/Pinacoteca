@@ -1,0 +1,31 @@
+\chapter{Requirements-design-test traceability}
+
+This section links requirements, software components, and unit tests, focusing exclusively on programming and simulation aspects.
+
+\section{Traceability matrix}
+\begingroup
+\sloppy
+\hbadness=10000
+\scriptsize
+\setlength{\tabcolsep}{2pt}
+\renewcommand{\arraystretch}{1.05}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{1.0cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+Req. & Software components & Tests \\
+\midrule
+R1 & \texttt{Turnstile}, \texttt{servomotor.h} & \texttt{TurnstileIncrementsAndDecrementsPeople}, \texttt{TurnstileRespectsMaxPeople} \\
+R2 & \texttt{Stoplight}, \texttt{led.h} & \texttt{StoplightBelowMaxSetsGreen}, \texttt{StoplightAtMaxSetsRed} \\
+R3 & \texttt{Thermostat}, \texttt{temperature.h} & \texttt{ThermostatHeatingBranch}, \texttt{ThermostatCoolingBranch} \\
+R4 & \texttt{HumidifierControl}, \texttt{humidity.h} & \texttt{HumidityReadAndError}, \texttt{HumidifierSensorErrorReturnsFalse} \\
+R5 & \texttt{LightingControl}, \texttt{photoresistor.h} & \texttt{PhotoresistorLuxEdgeCases}, \texttt{LightingControlWritesPwm} \\
+R6 & \texttt{DisplayPanel}, \texttt{DisplayInterface} & \texttt{DisplayPanelRotatesPages}, \texttt{DisplayInterfaceBasicOperations} \\
+R7 & All control modules & \texttt{ThermostatSensorErrorTurnsEverythingOff}, \texttt{HumidifierSensorErrorReturnsFalse} \\
+\bottomrule
+\end{tabularx}
+\renewcommand{\arraystretch}{1.0}
+\setlength{\tabcolsep}{6pt}
+\normalsize
+\endgroup
+
+\section{Notes}
+Traceability shows that each software requirement is covered by at least one test and that modules are independent and verifiable in isolation via mocks.

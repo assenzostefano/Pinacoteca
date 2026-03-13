@@ -1,0 +1,162 @@
+\chapter{Test}
+
+La suite di test usa GoogleTest ed e configurata nella cartella \texttt{test/}. L'obiettivo e garantire che ogni modulo reagisca correttamente sia ai casi nominali sia agli edge case, con particolare attenzione alle condizioni di sicurezza.
+
+\section{Struttura}
+Il file \texttt{CMakeLists.txt} in \texttt{test/} scarica GoogleTest via FetchContent.
+L'eseguibile generato si chiama \texttt{pinacoteca\_tests} e i mock delle API Arduino sono in \texttt{test/mocks/}.
+L'entry point dei test e \texttt{all\_tests.cpp}, dove ogni gruppo di funzionalita ha test dedicati.
+
+\section{Esecuzione}
+Sono disponibili due modalita:
+\begin{itemize}
+  \item Uso diretto di CMake:
+  \begin{lstlisting}[style=cppstyle]
+cd test
+cmake -S . -B build
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+  \end{lstlisting}
+  \item Script \texttt{run\_tests.sh} che gestisce build, pulizia e compilazione Arduino.
+\end{itemize}
+
+\section{Motivazioni per i test}
+Di seguito la spiegazione dettagliata delle verifiche, con obiettivo, condizioni e aspettative.
+
+\subsection{LED}
+\begin{itemize}
+  \item \textbf{Obiettivo}: garantire che le primitive di uscita scrivano sui pin corretti.
+  \item \textbf{Condizioni}: invocazioni dirette di \texttt{led} e \texttt{ledDimming} con valori noti.
+  \item \textbf{Aspettative}: \texttt{digitalWrite} e \texttt{analogWrite} ricevono il valore richiesto.
+  \item \textbf{Test}:
+  \begin{tabular}[t]{@{}l@{}}
+    \texttt{LedWriteDigitalState}\\
+    \texttt{LedDimmingWritesPwm}
+  \end{tabular}
+\end{itemize}
+
+\subsection{Stoplight}
+\begin{itemize}
+  \item \textbf{Obiettivo}: validare la semantica verde/rosso in base alla capienza.
+  \item \textbf{Condizioni}: conteggi sotto e pari al massimo.
+  \item \textbf{Aspettative}: verde acceso sotto-capienza, rosso acceso a capienza piena.
+  \item \textbf{Test}:
+  \begin{tabular}[t]{@{}l@{}}
+    \texttt{StoplightBelowMaxSetsGreen}\\
+    \texttt{StoplightAtMaxSetsRed}
+  \end{tabular}
+\end{itemize}
+
+\subsection{Servomotore}
+\begin{itemize}
+  \item \textbf{Obiettivo}: impedire movimenti oltre i limiti meccanici.
+  \item \textbf{Condizioni}: comandi con angolo valido e con angolo oltre 0--180.
+  \item \textbf{Aspettative}: movimento consentito nel range, blocco e log Serial fuori range.
+  \item \textbf{Test}:
+  \begin{tabular}[t]{@{}l@{}}
+    \texttt{AntiSufferingServoAllowsSafeMove}\\
+    \texttt{AntiSufferingServoBlocksOutOfRange}
+  \end{tabular}
+\end{itemize}
+
+\subsection{Turnstile}
+\begin{itemize}
+  \item \textbf{Obiettivo}: contare correttamente ingressi/uscite e rispettare il massimo.
+  \item \textbf{Condizioni}: stati dei pulsanti IN/OUT simulati; massimo persone variabile.
+  \item \textbf{Aspettative}: incremento e decremento coerenti, nessun superamento del limite.
+  \item \textbf{Test}:
+  \begin{tabular}[t]{@{}l@{}}
+    \texttt{TurnstileIncrementsAndDecrementsPeople}\\
+    \texttt{TurnstileRespectsMaxPeople}\\
+    \texttt{TurnstileBeginConfiguresPins}
+  \end{tabular}
+\end{itemize}
+
+\subsection{Temperature}
+\begin{itemize}
+  \item \textbf{Obiettivo}: gestire letture anomale del sensore NTC.
+  \item \textbf{Condizioni}: valori analogici ai limiti (0 e 1023) e un valore intermedio.
+  \item \textbf{Aspettative}: ritorno del sentinella \texttt{-999.0} ai limiti, valore finito in condizioni normali.
+  \item \textbf{Test}:
+  \begin{tabular}[t]{@{}l@{}}
+    \texttt{TemperatureReaderReturnsErrorAtExtremes}\\
+    \texttt{TemperatureReaderReturnsFiniteForValidInput}
+  \end{tabular}
+\end{itemize}
+
+\subsection{Thermostat}
+\begin{itemize}
+  \item \textbf{Obiettivo}: verificare logica heating/cooling e comportamento fail-safe.
+  \item \textbf{Condizioni}: lettura valida sopra/sotto target, e lettura invalida.
+  \item \textbf{Aspettative}: attivazione del pin corretto, spegnimento su errore sensore.
+  \item \textbf{Test}:
+  \begin{tabular}[t]{@{}l@{}}
+    \texttt{ThermostatHeatingBranch}\\
+    \texttt{ThermostatCoolingBranch}\\
+    \texttt{ThermostatSensorErrorTurnsEverythingOff}\\
+    \texttt{ThermostatBeginSetsPinModesAndSetGetTarget}
+  \end{tabular}
+\end{itemize}
+
+\subsection{Humidity e HumidifierControl}
+\begin{itemize}
+  \item \textbf{Obiettivo}: validare la lettura del DHT22 e la logica di soglia.
+  \item \textbf{Condizioni}: umidita alta, bassa e lettura non valida (\texttt{NAN}).
+  \item \textbf{Aspettative}: attuatore coerente con la soglia e spegnimento su errore.
+  \item \textbf{Test}:
+  \begin{tabular}[t]{@{}l@{}}
+    \texttt{HumidityReadAndError}\\
+    \texttt{HumidifierHighHumidityTurnsOnPin}\\
+    \texttt{HumidifierLowHumidityTurnsOffPin}\\
+    \texttt{HumidifierSensorErrorReturnsFalse}\\
+    \texttt{HumidifierSetGetTargetWorks}
+  \end{tabular}
+\end{itemize}
+
+\subsection{Photoresistor e LightingControl}
+\begin{itemize}
+  \item \textbf{Obiettivo}: garantire conversione e PWM coerenti con il target.
+  \item \textbf{Condizioni}: valori analogici ai limiti e valori intermedi.
+  \item \textbf{Aspettative}: lux clampati ai bordi e PWM coerente (255 con poca luce, 0 con luce alta).
+  \item \textbf{Test}:
+  \begin{tabular}[t]{@{}l@{}}
+    \texttt{PhotoresistorLuxEdgeCases}\\
+    \texttt{LightingControlWritesPwm}\\
+    \texttt{LightingControlBeginAndSetGetTarget}
+  \end{tabular}
+\end{itemize}
+
+\subsection{DisplayInterface}
+\begin{itemize}
+  \item \textbf{Obiettivo}: verificare il layer LCD astratto.
+  \item \textbf{Condizioni}: chiamate a \texttt{begin}, \texttt{clear}, \texttt{setCursor}, \texttt{print}.
+  \item \textbf{Aspettative}: il buffer del mock LCD contiene le stringhe attese.
+  \item \textbf{Test}:
+  \begin{tabular}[t]{@{}l@{}}
+    \texttt{DisplayInterfaceBasicOperations}
+  \end{tabular}
+\end{itemize}
+
+\subsection{DisplayPanel}
+\begin{itemize}
+  \item \textbf{Obiettivo}: verificare rotazione pagine e messaggi diagnostici.
+  \item \textbf{Condizioni}: avanzamento del tempo simulato e variazione dei valori sensore.
+  \item \textbf{Aspettative}: pagina data/ora, pagina stato e pagina errori mostrate a rotazione.
+  \item \textbf{Test}:
+  \begin{tabular}[t]{@{}l@{}}
+    \texttt{DisplayPanelRotatesPages}\\
+    \texttt{DisplayDatePageHasValidWeekdayPrefix}\\
+    \texttt{DisplayStatusPageShowsTurnstileCountExactly}\\
+    \texttt{DisplayErrorPageShowsHumidityHigh}\\
+    \texttt{DisplayErrorPageShowsTurnstileError}
+  \end{tabular}
+\end{itemize}
+
+\section{Script run\_tests.sh}
+Opzioni principali:
+\begin{itemize}
+  \item \texttt{--clean}: elimina la cartella build.
+  \item \texttt{--with-arduino}: compila lo sketch con arduino-cli.
+  \item \texttt{--upload}: carica lo sketch su una board (richiede \texttt{--port}).
+  \item \texttt{--board <fqbn>}: seleziona la board, default \texttt{arduino:avr:uno}.
+\end{itemize}

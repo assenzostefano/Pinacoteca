@@ -1,0 +1,17 @@
+\chapter{Calibration and simulation limits}
+
+This section describes software calibration aspects and simulation limits.
+
+\section{Software calibration}
+\begin{itemize}
+  \item \textbf{Temperature}: the NTC calculation uses standard parameters (BETA, RL10). Real accuracy depends on the sensor and wiring, but the simulation model is stable.
+  \item \textbf{Humidity}: the DHT22 in simulation returns ideal values; in a real environment an empirical calibration is recommended.
+  \item \textbf{Lux}: conversion from the photoresistor is approximate; the target lux is a software reference rather than a certified measurement.
+\end{itemize}
+
+\section{Simulation limits}
+\begin{itemize}
+  \item PWM is simplified (full value when light is needed).
+  \item Sensor response time is idealized.
+  \item Some real phenomena (noise, drift, latency) are not reproduced.
+\end{itemize}

@@ -1,0 +1,108 @@
+\documentclass[11pt,a4paper]{report}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage[hidelinks]{hyperref}
+
+\hbadness=10000
+
+\lstdefinestyle{cppstyle}{
+  language=C++,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue},
+  stringstyle=\color{teal},
+  commentstyle=\color{gray},
+  numbers=left,
+  numberstyle=\tiny,
+  stepnumber=1,
+  numbersep=8pt,
+  breaklines=true,
+  frame=single,
+  columns=fullflexible
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+\linespread{1.05}
+\setlist{itemsep=3pt, topsep=4pt, parsep=0pt}
+
+\titleformat{\chapter}
+  {\bfseries\Large}
+  {Capitolo \thechapter ---}
+  {0.6em}
+  {}
+\titlespacing*{\chapter}{0pt}{-6pt}{12pt}
+
+\titleformat{\section}
+  {\bfseries\normalsize}
+  {\thesection}
+  {0.6em}
+  {}
+\titlespacing*{\section}{0pt}{10pt}{6pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Pinacoteca}
+\fancyhead[R]{\nouppercase{\leftmark}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+\setlength{\headheight}{14pt}
+\addtolength{\topmargin}{-2pt}
+
+\title{Pinacoteca\\Documentazione di Progetto}
+\author{Elettro5.B}
+\date{\today}
+
+\begin{document}
+\hypersetup{pageanchor=false}
+\maketitle
+\thispagestyle{empty}
+\pagenumbering{roman}
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+Questa documentazione descrive in modo completo il progetto Pinacoteca, con focus su architettura software, logica di controllo, simulazione e validazione. Sono inclusi requisiti, tracciabilita, motivazioni delle scelte, procedure di test e limiti noti, per garantire un quadro professionale e verificabile.
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+\hypersetup{pageanchor=true}
+
+\include{sections/01_introduzione}
+\include{sections/02_architettura}
+\include{sections/03_decisioni}
+\include{sections/03_diagrammi}
+\include{sections/03_hardware}
+\include{sections/04_firmware}
+\include{sections/05_moduli}
+\include{sections/06_display}
+\include{sections/07_implementazione}
+\include{sections/08_requisiti}
+\include{sections/07_test}
+\include{sections/08_uso}
+\include{sections/09_rischi}
+\include{sections/10_timing}
+\include{sections/11_limiti}
+\include{sections/12_tracciabilita}
+\include{sections/13_validazione}
+\include{sections/14_calibrazione}
+\include{sections/15_tradeoff}
+\include{sections/16_glossario}
+\include{sections/09_api}
+\include{sections/10_software}
+
+\end{document}

@@ -1,0 +1,21 @@
+\chapter{LCD Display}
+
+The 16x2 display uses an abstraction layer defined in \texttt{display.h} (class \texttt{DisplayInterface}) and application logic in \texttt{lcd.h} (class \texttt{DisplayPanel}). This separation allows logic to be tested without directly depending on hardware.
+
+\section{Pages}
+The panel rotates three pages every 5 seconds:
+\begin{itemize}
+  \item \textbf{Date/Time}: calculated from \texttt{\_\_DATE\_\_}, \texttt{\_\_TIME\_\_}, and \texttt{millis()}.
+  \item \textbf{Status}: temperature, humidity, and people count.
+  \item \textbf{Diagnostics}: error messages or anomalies.
+\end{itemize}
+The error page shows critical conditions with priority, enabling quick intervention.
+
+\section{Date and time computation}
+Since there is no RTC, time is computed by combining the build timestamp with the increment of \texttt{millis()}. The base is set in the constructor, offering a coherent initial date and continuous time progression.
+
+\section{Update}
+Refresh is limited to 1 second to avoid flicker. Each update reads values from \texttt{Thermostat}, \texttt{HumidifierControl}, and \texttt{LightingControl}. The page switches every 5 seconds to allow time to read each set of information.
+
+\section{Safety and robustness}
+If a sensor value is invalid, the display shows \texttt{ERR} or an explicit message. This avoids misinterpretation and makes faults evident.

@@ -1,0 +1,55 @@
+\chapter{Hardware}
+
+The Wokwi simulation described in \texttt{diagram.json} uses an Arduino Uno, a servo, buttons, LEDs, sensors, and a 16x2 LCD. The wiring matches the pins defined in the firmware, so the simulation faithfully represents the behavior expected on real hardware.
+
+\section{Components}
+\begin{itemize}
+  \item Arduino Uno
+  \item Servo for the turnstile
+  \item 2 buttons (IN/OUT) with pull-down resistors
+  \item Green and red LEDs (traffic light)
+  \item Blue and orange LEDs (cooling/heating)
+  \item White LED (humidity)
+  \item Photoresistor (LDR)
+  \item NTC sensor for temperature
+  \item DHT22 sensor for humidity
+  \item 4 yellow LEDs for the ceiling light (driven in parallel)
+  \item 16x2 LCD
+\end{itemize}
+
+\section{Selection criteria}
+Components were chosen for easy integration and the availability of stable libraries. The NTC provides a linear analog measure for the thermostat, while the DHT22 provides humidity with a simple digital interface. The 16x2 LCD balances cost and readability, with a standardized interface via \texttt{LiquidCrystal}.
+
+\section{Pin map}
+\begin{longtable}{@{}lll@{}}
+\toprule
+Function & Pin & Notes \\
+\midrule
+Turnstile servo & D3 & PWM \\
+IN button & D6 & digital input \\
+OUT button & D7 & digital input \\
+Traffic light green LED & D4 & digital output \\
+Traffic light red LED & D5 & digital output \\
+Cooling LED & D8 & digital output \\
+Heating LED & D9 & digital output \\
+Ceiling light (PWM) & D10 & lighting dimmer \\
+Humidity LED & D11 & digital output \\
+Temperature sensor (NTC) & A0 & analog input \\
+Photoresistor & A1 & analog input \\
+LCD RS & D12 & \\
+LCD EN & D13 & \\
+LCD D4 & A2 & \\
+LCD D5 & A3 & \\
+LCD D6 & A4 & \\
+LCD D7 & A5 & \\
+DHT22 & D2 & pin defined in \texttt{humidity.h} \\
+\bottomrule
+\end{longtable}
+
+\section{Wiring notes}
+\begin{itemize}
+  \item LEDs are connected with 220\,\textohm resistors to limit current.
+  \item Buttons use 10\,k\textohm pull-down resistors to avoid floating readings.
+  \item The DHT22 uses digital pin 2 and requires 5V power.
+  \item The ceiling light is driven in PWM on D10, which simplifies intensity control.
+\end{itemize}

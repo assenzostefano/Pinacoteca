@@ -1,0 +1,38 @@
+\chapter{Firmware}
+
+The main file \texttt{Pinacoteca.ino} instantiates modules and defines pins. The logic is organized in two distinct phases, providing a predictable and easily verifiable execution cycle.
+
+\section{Setup}
+During \texttt{setup()} the following are initialized:
+\begin{itemize}
+  \item serial for debug and diagnostics;
+  \item servo and turnstile with a known initial position;
+  \item traffic light, thermostat, lighting, and humidity;
+  \item LCD panel with a startup message.
+\end{itemize}
+Initializing the servo before other modules reduces the risk of unintended movement during pin configuration.
+
+\section{Loop}
+In the main loop, each module updates its state in a coherent sequence:
+\begin{enumerate}
+  \item update turnstile and people count;
+  \item update traffic light based on the limit;
+  \item adjust climate (heating or cooling);
+  \item adjust lighting;
+  \item control humidity;
+  \item refresh the display with current data.
+\end{enumerate}
+The order is intentional: human inputs are handled first, then status indicators are updated, and finally the LCD interface is refreshed. This way the display reflects the latest decision of the cycle.
+
+\section{Error handling}
+Modules that read sensors validate measurement correctness. If input is invalid, outputs are set to a safe state and the update function returns \texttt{false}. This behavior aligns with the project fail-safe philosophy.
+
+\section{Target configuration}
+Targets are passed to module constructors:
+\begin{itemize}
+  \item \texttt{Thermostat}: desired temperature in Celsius.
+  \item \texttt{LightingControl}: target illuminance in lux.
+  \item \texttt{HumidifierControl}: target humidity in percent.
+  \item \texttt{Turnstile}: maximum number of people.
+\end{itemize}
+Centralized configuration in the main file allows quick tuning without modifying individual modules.

@@ -1,0 +1,55 @@
+\chapter{Hardware}
+
+La simulazione Wokwi descritta in \texttt{diagram.json} usa una Arduino Uno, un servo, pulsanti, LED, sensori e un LCD 16x2. Il cablaggio e coerente con i pin definiti nel firmware, cosi che la simulazione sia una rappresentazione fedele del comportamento atteso su hardware reale.
+
+\section{Componenti}
+\begin{itemize}
+  \item Arduino Uno
+  \item Servo per tornello
+  \item 2 pulsanti (IN/OUT) con resistori di pull-down
+  \item LED verde e rosso (semaforo)
+  \item LED blu e arancione (raffreddamento/riscaldamento)
+  \item LED bianco (umidita)
+  \item Fotoresistenza (LDR)
+  \item Sensore NTC per temperatura
+  \item Sensore DHT22 per umidita
+  \item 4 LED gialli per plafoniera (pilotati in parallelo)
+  \item LCD 16x2
+\end{itemize}
+
+\section{Criteri di scelta}
+I componenti sono stati selezionati per semplicita di integrazione e disponibilita di librerie stabili. L'NTC offre una misura analogica lineare per il termostato, mentre il DHT22 fornisce umidita con interfaccia digitale semplice. L'LCD 16x2 rappresenta un compromesso tra costo e leggibilita, con un'interfaccia standardizzata tramite \texttt{LiquidCrystal}.
+
+\section{Mappa pin}
+\begin{longtable}{@{}lll@{}}
+\toprule
+Funzione & Pin & Note \\
+\midrule
+Servo tornello & D3 & PWM \\
+Pulsante IN & D6 & ingresso digitale \\
+Pulsante OUT & D7 & ingresso digitale \\
+LED verde semaforo & D4 & uscita digitale \\
+LED rosso semaforo & D5 & uscita digitale \\
+LED raffreddamento & D8 & uscita digitale \\
+LED riscaldamento & D9 & uscita digitale \\
+Plafoniera (PWM) & D10 & dimmer luci \\
+LED umidita & D11 & uscita digitale \\
+Sensore temperatura (NTC) & A0 & ingresso analogico \\
+Fotoresistenza & A1 & ingresso analogico \\
+LCD RS & D12 & \\
+LCD EN & D13 & \\
+LCD D4 & A2 & \\
+LCD D5 & A3 & \\
+LCD D6 & A4 & \\
+LCD D7 & A5 & \\
+DHT22 & D2 & pin definito in \texttt{humidity.h} \\
+\bottomrule
+\end{longtable}
+
+\section{Note di cablaggio}
+\begin{itemize}
+  \item I LED sono collegati con resistori da 220\,\textohm per limitare la corrente.
+  \item I pulsanti usano resistori da 10\,k\textohm per pull-down, evitando letture flottanti.
+  \item Il DHT22 usa il pin digitale 2 e richiede alimentazione a 5V.
+  \item La plafoniera e pilotata in PWM sul pin D10, soluzione che semplifica la regolazione dell'intensita.
+\end{itemize}

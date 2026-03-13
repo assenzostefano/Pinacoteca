@@ -1,0 +1,30 @@
+\chapter{Usage instructions}
+
+\section{Test build}
+To run unit tests:
+\begin{lstlisting}[style=cppstyle]
+make test
+\end{lstlisting}
+This command invokes the script and produces the test executable in the \texttt{test/build} folder.
+
+To clean:
+\begin{lstlisting}[style=cppstyle]
+make test-clean
+\end{lstlisting}
+Cleaning is recommended when switching toolchains or updating dependencies.
+
+\section{Arduino compilation}
+To compile the sketch via the script:
+\begin{lstlisting}[style=cppstyle]
+./test/run_tests.sh --with-arduino --board arduino:avr:uno
+\end{lstlisting}
+This mode runs unit tests first and then compiles the sketch, reducing the risk of uploading unverified firmware.
+
+To upload to a real board:
+\begin{lstlisting}[style=cppstyle]
+./test/run_tests.sh --upload --board arduino:avr:uno --port /dev/ttyACM0
+\end{lstlisting}
+Before uploading, verify that the serial port is correct.
+
+\section{Wokwi simulation}
+The simulation wiring is defined in \texttt{diagram.json}. Open the project in Wokwi and start the simulation to observe the overall behavior. The simulation is useful for validating the flow without physical hardware.

@@ -1,0 +1,59 @@
+\chapter{Software modules}
+
+This section describes in detail the modules in \texttt{lib/}. Each module is designed with a minimal interface and explicit internal logic, easing reuse and verification through tests.
+
+\section{LED}
+\paragraph{Purpose} The \texttt{led.h} file provides actuation primitives to write to digital or PWM pins. Centralizing these functions avoids duplication across control modules.
+
+\paragraph{Flow} \texttt{led(pin, state)} performs a single \texttt{digitalWrite} and returns \texttt{true}. \texttt{ledDimming(pin, pwm)} performs \texttt{analogWrite} with the same scheme. A uniform return semantics simplifies tests.
+
+\paragraph{Safety} The functions do not implement safety logic, but are used in a context where calling modules validate their inputs. This prevents a sensor error from being turned into an active actuator.
+
+\paragraph{Choices} Keeping functions simple and stateless reduces complexity and improves behavioral predictability in tests with mocks.
+
+\section{Servomotor and turnstile}
+\paragraph{Purpose} The \texttt{servomotor.h} module protects the servo via \texttt{antiSufferingServo}.\linebreak
+The \texttt{turnstile.h} module manages entrances and exits, maintaining a people counter.
+
+\paragraph{Flow} In \texttt{Turnstile::begin}, button pins are configured and the servo is attached. In \texttt{update()}, IN/OUT buttons are read, capacity constraints are applied, and the servo is moved for opening and closing.
+
+\paragraph{Safety} \texttt{antiSufferingServo} prevents exceeding the 0--180 range, logs a message on Serial, and returns \texttt{false}. This reduces the risk of mechanical damage. The counter prevents entries above the maximum or exits below zero.
+
+\paragraph{Choices} An internal counter avoids external dependencies and makes the module self-contained. Checking limits before moving the servo is a safety choice that avoids unnecessary actuation.
+
+\section{Stoplight}
+\paragraph{Purpose} \texttt{stoplight.h} translates capacity state into immediate visual signals.
+
+\paragraph{Flow} \texttt{begin()} configures pins as outputs. \texttt{update(currentPeople, maxPeople)} decides whether to turn on green or red based on the comparison.
+
+\paragraph{Safety} No intermediate modes are provided: in unexpected conditions, the module always keeps one of the two outputs active, avoiding ambiguity for the operator.
+
+\paragraph{Choices} Binary logic makes behavior easy to verify and minimizes interpretation errors.
+
+\section{Temperature and thermostat}
+\paragraph{Purpose} \texttt{temperature.h} converts the NTC analog reading into Celsius. \texttt{thermostat.h} decides the climate mode based on a central threshold with tolerance.
+
+\paragraph{Flow} The temperature reader checks extreme values and returns \texttt{-999.0} on error. The thermostat reads the temperature, determines the requested action, and activates heating or cooling.
+
+\paragraph{Safety} If the reading is invalid, the thermostat turns both outputs off and returns \texttt{false}. In addition, a time pause between state changes prevents rapid toggling that could wear components.
+
+\paragraph{Choices} The 1.0 C tolerance creates a neutral window that stabilizes the system. The pause is a compromise between responsiveness and stability, suitable for a real environment.
+
+\section{Humidity and control}
+\paragraph{Purpose} \texttt{humidity.h} encapsulates DHT22 usage and provides a humidity reading.\linebreak
+\texttt{humidifier.h} manages the actuator based on the target.
+
+\paragraph{Flow} The sensor is initialized with \texttt{beginHumiditySensor}. \texttt{readHumidity()} returns the current value or \texttt{-999.0} on error. The humidity control compares the reading with the target and applies a tolerance.
+
+\paragraph{Safety} On sensor error, the output is switched off. The tolerance avoids continuous oscillations around the setpoint.
+
+\paragraph{Choices} A single sentinel value for errors simplifies integration with the display and diagnostics.
+
+\section{Lighting}
+\paragraph{Purpose} \texttt{photoresistor.h} estimates lux from a photoresistor. \texttt{lighting\_control.h} regulates the ceiling light via PWM.
+
+\paragraph{Flow} The analog reading is converted to lux using a simplified model. The control calculates the difference from the target and decides whether to activate PWM.
+
+\paragraph{Safety} Out-of-range readings are handled with minimum or maximum values, avoiding divisions by zero. PWM is always limited to the 0--255 range.
+
+\paragraph{Choices} In Wokwi simulation the PWM is set to 255 when light is needed, providing clear and predictable visual behavior during tests.

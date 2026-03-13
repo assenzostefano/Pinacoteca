@@ -1,0 +1,44 @@
+\chapter{Requirements and traceability}
+
+This section lists the main functional requirements and their traceability to unit tests. The goal is to demonstrate that design choices are verified systematically.
+
+\section{Functional requirements}
+\begin{itemize}
+  \item \textbf{R1} The system must count entrances and exits with a configurable maximum limit.
+  \item \textbf{R2} The system must signal capacity status with a green/red traffic light.
+  \item \textbf{R3} The system must control temperature with heating and cooling modes.
+  \item \textbf{R4} The system must control humidity with threshold and tolerance.
+  \item \textbf{R5} The system must control lighting with a target in lux.
+  \item \textbf{R6} The display must show date/time, status, and diagnostics.
+  \item \textbf{R7} In case of sensor errors, actuators must be deactivated.
+\end{itemize}
+
+\section{Test traceability}
+\begingroup
+\sloppy
+\hbadness=10000
+\tolerance=10000
+\emergencystretch=1em
+\scriptsize
+\setlength{\tabcolsep}{2pt}
+\renewcommand{\arraystretch}{1.05}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{1.0cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+Req. & Description & Related tests \\
+\midrule
+R1 & People counting with limits & \begin{tabular}[t]{@{}l@{}}\texttt{TurnstileIncrementsAndDecrementsPeople}\\\texttt{TurnstileRespectsMaxPeople}\end{tabular} \\
+R2 & Capacity stoplight & \begin{tabular}[t]{@{}l@{}}\texttt{StoplightBelowMaxSetsGreen}\\\texttt{StoplightAtMaxSetsRed}\end{tabular} \\
+R3 & Climate with heating/cooling & \begin{tabular}[t]{@{}l@{}}\texttt{ThermostatHeatingBranch}\\\texttt{ThermostatCoolingBranch}\end{tabular} \\
+R4 & Humidity control & \begin{tabular}[t]{@{}l@{}}\texttt{HumidifierHighHumidityTurnsOnPin}\\\texttt{HumidifierLowHumidityTurnsOffPin}\end{tabular} \\
+R5 & Lighting control & \begin{tabular}[t]{@{}l@{}}\texttt{LightingControlWritesPwm}\end{tabular} \\
+R6 & Display pages & \begin{tabular}[t]{@{}l@{}}\texttt{DisplayPanelRotatesPages}\\\texttt{DisplayDatePageHasValidWeekdayPrefix}\end{tabular} \\
+R7 & Fail-safe on sensor errors & \begin{tabular}[t]{@{}l@{}}\texttt{ThermostatSensorErrorTurnsEverythingOff}\\\texttt{HumidifierSensorErrorReturnsFalse}\end{tabular} \\
+\bottomrule
+\end{tabularx}
+\renewcommand{\arraystretch}{1.0}
+\setlength{\tabcolsep}{6pt}
+\normalsize
+\endgroup
+
+\section{Notes}
+Tests are executed with Arduino mocks, so checks focus on side effects (pins and LCD buffer) rather than real hardware. This approach ensures speed and repeatability.
