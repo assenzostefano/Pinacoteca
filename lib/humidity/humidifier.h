@@ -7,12 +7,12 @@
 
 class HumidifierControl {
     private:
-        int _humidifierPin;
+        uint8_t _humidifierPin;
         float _targetHumidity;
 
     public:
         HumidifierControl(int humidifierPin, float targetHumidity)
-            : _humidifierPin(humidifierPin), _targetHumidity(targetHumidity) {}
+            : _humidifierPin(static_cast<uint8_t>(humidifierPin)), _targetHumidity(targetHumidity) {}
 
         void begin() {
             beginHumiditySensor(); // Initialize the DHT sensor

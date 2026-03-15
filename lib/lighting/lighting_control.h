@@ -7,13 +7,15 @@
 
 class LightingControl {
     private:
-        int _dimmerPin;
-        int _targetLux;
-        int _sensorPin;
+        uint8_t _dimmerPin;
+        uint16_t _targetLux;
+        uint8_t _sensorPin;
 
     public:
         LightingControl(int sensorPin, int dimmerPin, int targetLux)
-            : _sensorPin(sensorPin), _dimmerPin(dimmerPin), _targetLux(targetLux) {}
+            : _dimmerPin(static_cast<uint8_t>(dimmerPin)),
+              _targetLux(static_cast<uint16_t>(constrain(targetLux, 0, 65535))),
+              _sensorPin(static_cast<uint8_t>(sensorPin)) {}
 
         void begin() {
             pinMode(_sensorPin, INPUT);
@@ -39,7 +41,7 @@ class LightingControl {
         }
 
         void setTargetLux(int newLuxTarget) {
-            _targetLux = newLuxTarget;
+            _targetLux = static_cast<uint16_t>(constrain(newLuxTarget, 0, 65535));
         }
 
         int getTargetLux() const {

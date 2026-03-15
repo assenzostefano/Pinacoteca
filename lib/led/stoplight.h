@@ -6,11 +6,13 @@
 
 class Stoplight {
     private:
-        int _greenPin;
-        int _redPin;
+        uint8_t _greenPin;
+        uint8_t _redPin;
 
     public:
-        Stoplight(int greenPin, int redPin) : _greenPin(greenPin), _redPin(redPin) {}
+        Stoplight(int greenPin, int redPin)
+            : _greenPin(static_cast<uint8_t>(greenPin)),
+              _redPin(static_cast<uint8_t>(redPin)) {}
 
         void begin() {
             pinMode(_greenPin, OUTPUT);

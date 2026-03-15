@@ -7,18 +7,20 @@
 
 class Thermostat {
     private:
-        int _sensorPin;
-        int _heatingPin;
-        int _coolingPin;
+        uint8_t _sensorPin;
+        uint8_t _heatingPin;
+        uint8_t _coolingPin;
         float _desiredTemperature;
         
-        int _currentState; // 0 = OFF, 1 = Heating, 2 = Cooling
+        uint8_t _currentState; // 0 = OFF, 1 = Heating, 2 = Cooling
         unsigned long _previousMillis;
         unsigned long _pauseTime;
 
     public:
         Thermostat(int sensorPin, float desiredTemperature, int heatingPin, int coolingPin)
-            : _sensorPin(sensorPin), _heatingPin(heatingPin), _coolingPin(coolingPin), 
+            : _sensorPin(static_cast<uint8_t>(sensorPin)),
+              _heatingPin(static_cast<uint8_t>(heatingPin)),
+              _coolingPin(static_cast<uint8_t>(coolingPin)),
               _desiredTemperature(desiredTemperature), _currentState(0), _previousMillis(0), _pauseTime(5000) {} // TODO: 5000ms for testing, real is 60000ms
 
         void begin() {

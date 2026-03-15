@@ -8,7 +8,7 @@ BUILD_DIR="$SCRIPT_DIR/build"
 WITH_ARDUINO=false
 CLEAN=false
 UPLOAD=false
-BOARD_FQBN="arduino:avr:uno"
+BOARD_FQBN="arduino:renesas_uno:unor4wifi"
 PORT=""
 
 print_help() {
@@ -19,14 +19,14 @@ Opzioni:
   --clean                 Pulisce la build dei test
   --with-arduino          Compila lo sketch Arduino dopo i test unitari
   --upload                Carica lo sketch sulla board (implica --with-arduino)
-  --board <fqbn>          Imposta la board FQBN (default: arduino:avr:uno)
+  --board <fqbn>          Imposta la board FQBN (default: arduino:renesas_uno:unor4wifi)
   --port <serial_port>    Porta seriale per upload (es: /dev/ttyACM0)
   --help                  Mostra questo help
 
 Esempi:
   ./run_tests.sh --clean
-  ./run_tests.sh --with-arduino --board arduino:megaavr:uno2018
-  ./run_tests.sh --upload --board arduino:avr:uno --port /dev/ttyACM0
+  ./run_tests.sh --with-arduino --board arduino:renesas_uno:unor4wifi
+  ./run_tests.sh --upload --board arduino:renesas_uno:unor4wifi --port /dev/ttyACM0
 EOF
 }
 
@@ -82,7 +82,12 @@ cmake --build "$BUILD_DIR" -j
 ctest --test-dir "$BUILD_DIR" --output-on-failure
 
 if $WITH_ARDUINO; then
-  arduino-cli compile -b "$BOARD_FQBN" --output-dir "$PROJECT_ROOT/build" "$PROJECT_ROOT/Pinacoteca.ino"
+  ARDUINO_OUTPUT_DIR="$PROJECT_ROOT/build-r4"
+  if [[ "$BOARD_FQBN" == "arduino:avr:uno" ]]; then
+    ARDUINO_OUTPUT_DIR="$PROJECT_ROOT/build-wokwi"
+  fi
+
+  arduino-cli compile -b "$BOARD_FQBN" --output-dir "$ARDUINO_OUTPUT_DIR" "$PROJECT_ROOT/Pinacoteca.ino"
 
   if $UPLOAD; then
     if [[ -z "$PORT" ]]; then

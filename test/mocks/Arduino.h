@@ -4,6 +4,8 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <algorithm>
+#include <cctype>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -78,9 +80,115 @@ inline long constrain(long x, long a, long b) {
     return x;
 }
 
+class String {
+private:
+    std::string _value;
+
+public:
+    String() = default;
+    String(const char* s) : _value(s ? s : "") {}
+    String(const std::string& s) : _value(s) {}
+    String(char c) : _value(1, c) {}
+    String(int v) : _value(std::to_string(v)) {}
+    String(unsigned long v) : _value(std::to_string(v)) {}
+    String(float v, unsigned char decimals = 2) {
+        char fmt[16];
+        char out[64];
+        std::snprintf(fmt, sizeof(fmt), "%%.%df", decimals);
+        std::snprintf(out, sizeof(out), fmt, static_cast<double>(v));
+        _value = out;
+    }
+
+    size_t length() const { return _value.length(); }
+    void reserve(size_t) {}
+    const char* c_str() const { return _value.c_str(); }
+
+    char operator[](size_t i) const { return _value[i]; }
+
+    String& operator+=(const String& other) {
+        _value += other._value;
+        return *this;
+    }
+
+    String& operator+=(const char* s) {
+        _value += (s ? s : "");
+        return *this;
+    }
+
+    String& operator+=(char c) {
+        _value += c;
+        return *this;
+    }
+
+    bool operator==(const char* s) const {
+        return _value == (s ? s : "");
+    }
+
+    bool operator==(const String& other) const {
+        return _value == other._value;
+    }
+
+    bool startsWith(const char* prefix) const {
+        if (!prefix) return false;
+        std::string p(prefix);
+        return _value.rfind(p, 0) == 0;
+    }
+
+    String substring(size_t start) const {
+        if (start >= _value.length()) return String("");
+        return String(_value.substr(start));
+    }
+
+    String substring(size_t start, size_t end) const {
+        if (start >= _value.length() || end <= start) return String("");
+        size_t len = std::min(end, _value.length()) - start;
+        return String(_value.substr(start, len));
+    }
+
+    int toInt() const {
+        try {
+            return std::stoi(_value);
+        } catch (...) {
+            return 0;
+        }
+    }
+
+    float toFloat() const {
+        try {
+            return std::stof(_value);
+        } catch (...) {
+            return 0.0f;
+        }
+    }
+
+    void trim() {
+        size_t start = 0;
+        while (start < _value.length() && std::isspace(static_cast<unsigned char>(_value[start]))) {
+            ++start;
+        }
+
+        size_t end = _value.length();
+        while (end > start && std::isspace(static_cast<unsigned char>(_value[end - 1]))) {
+            --end;
+        }
+
+        _value = _value.substr(start, end - start);
+    }
+
+    void toUpperCase() {
+        for (char& c : _value) {
+            c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        }
+    }
+
+    std::string std() const { return _value; }
+};
+
 class MockSerial {
 public:
     std::vector<std::string> logs;
+    std::string inputBuffer;
+    size_t inputCursor = 0;
 
     void begin(unsigned long) {}
 
@@ -89,6 +197,9 @@ public:
     }
     void println(const std::string& msg) {
         logs.push_back(msg);
+    }
+    void println(const String& msg) {
+        logs.push_back(msg.std());
     }
     void println(int value) {
         logs.push_back(std::to_string(value));
@@ -101,6 +212,9 @@ public:
     void print(const char* msg) {
         logs.emplace_back(msg ? msg : "");
     }
+    void print(const String& msg) {
+        logs.push_back(msg.std());
+    }
     void print(int value) {
         logs.push_back(std::to_string(value));
     }
@@ -110,7 +224,27 @@ public:
         logs.emplace_back(buf);
     }
 
-    void clear() { logs.clear(); }
+    int available() const {
+        return static_cast<int>(inputBuffer.size() - inputCursor);
+    }
+
+    int read() {
+        if (inputCursor >= inputBuffer.size()) {
+            return -1;
+        }
+
+        return static_cast<unsigned char>(inputBuffer[inputCursor++]);
+    }
+
+    void injectInput(const std::string& data) {
+        inputBuffer += data;
+    }
+
+    void clear() {
+        logs.clear();
+        inputBuffer.clear();
+        inputCursor = 0;
+    }
 };
 
 inline MockSerial Serial;

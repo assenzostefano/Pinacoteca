@@ -1,4 +1,6 @@
 build/
+build-r4/
+build-wokwi/
 .vscode/
 *.aux
 *.log
