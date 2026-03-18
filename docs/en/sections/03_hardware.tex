@@ -46,6 +46,85 @@ DHT22 & D2 & pin defined in \texttt{humidity.h} \\
 \bottomrule
 \end{longtable}
 
+\section{Graphical wiring schematic}
+The following figure provides a compact wiring overview with Arduino at the center, sensors on the left, and actuators/display on the right. Connections are grouped by signal type (analog, digital, PWM, LCD bus) to improve readability while preserving firmware pin mapping.
+
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[>=latex, thick, node distance=1.2cm]
+  \tikzstyle{arduino}=[draw, rounded corners, minimum width=4.2cm, minimum height=8.5cm, align=center, fill=gray!14]
+  \tikzstyle{sensor}=[draw, rounded corners, minimum width=3.2cm, minimum height=0.9cm, align=center, fill=green!12]
+  \tikzstyle{actor}=[draw, rounded corners, minimum width=3.5cm, minimum height=0.9cm, align=center, fill=blue!12]
+  \tikzstyle{groupbox}=[draw, rounded corners, dashed, line width=0.8pt, fill=gray!3]
+
+  \draw[red!70!black, line width=1.8pt] (-8.2,4.55) -- (8.2,4.55) node[right, black, font=\scriptsize\bfseries] {+5V rail};
+  \draw[black!70, line width=1.8pt] (-8.2,-4.55) -- (8.2,-4.55) node[right, black, font=\scriptsize\bfseries] {GND rail};
+
+  \node[arduino] (uno) at (0,0) {Arduino UNO\\\small Pinacoteca firmware};
+
+  \node[draw, fill=green!22, minimum width=0.42cm, minimum height=6.6cm, anchor=east] (hdrL) at ($(uno.west)+(0,0)$) {};
+  \node[draw, fill=blue!22, minimum width=0.42cm, minimum height=6.6cm, anchor=west] (hdrR) at ($(uno.east)+(0,0)$) {};
+  \node[rotate=90, font=\scriptsize\bfseries] at (hdrL.center) {INPUT HEADER};
+  \node[rotate=90, font=\scriptsize\bfseries] at (hdrR.center) {OUTPUT HEADER};
+
+  \node[groupbox, minimum width=3.8cm, minimum height=4.8cm, anchor=center] (sensorsbox) at (-6,0.6) {};
+  \node[above left=0.0cm and -0.1cm of sensorsbox.north west, font=\footnotesize\bfseries] {Sensors / Inputs};
+
+  \node[groupbox, minimum width=4.1cm, minimum height=7.5cm, anchor=center] (actorsbox) at (6,0.1) {};
+  \node[above left=0.0cm and -0.1cm of actorsbox.north west, font=\footnotesize\bfseries] {Actuators / Display};
+
+  \node[sensor] (ntc) at (-6,3.0) {Temperature NTC (A0)};
+  \node[sensor] (ldr) at (-6,1.7) {Photoresistor LDR (A1)};
+  \node[sensor] (dht) at (-6,0.4) {Humidity DHT22 (D2)};
+  \node[sensor] (btnin) at (-6,-1.2) {IN button (D6)};
+  \node[sensor] (btnout) at (-6,-2.5) {OUT button (D7)};
+
+  \node[actor] (servo) at (6,3.2) {Turnstile servo (D3)};
+  \node[actor] (tl) at (6,2.0) {Traffic LEDs green/red (D4,D5)};
+  \node[actor] (clima) at (6,0.8) {Climate LEDs cool/heat (D8,D9)};
+  \node[actor] (light) at (6,-0.4) {Ceiling PWM lighting (D10)};
+  \node[actor] (humled) at (6,-1.6) {Humidity LED (D11)};
+  \node[actor] (lcd) at (6,-3.1) {LCD 16x2 (D12,D13,A2,A3,A4,A5)};
+
+  \node[font=\scriptsize\bfseries, text=green!50!black] at (-6,4.05) {INPUT SIDE};
+  \node[font=\scriptsize\bfseries, text=blue!50!black] at (6,4.05) {OUTPUT SIDE};
+
+  \draw[->, teal!80!black, line width=1.2pt] (ntc.east) -- node[above,sloped]{A0} ($(uno.west)+(0,2.8)$);
+  \draw[->, teal!80!black, line width=1.2pt] (ldr.east) -- node[above,sloped]{A1} ($(uno.west)+(0,1.8)$);
+  \draw[->, purple!75!black, line width=1.2pt] (dht.east) -- node[above,sloped]{D2} ($(uno.west)+(0,0.8)$);
+  \draw[->, purple!75!black, line width=1.2pt] (btnin.east) -- node[below,sloped]{D6} ($(uno.west)+(0,-1.3)$);
+  \draw[->, purple!75!black, line width=1.2pt] (btnout.east) -- node[below,sloped]{D7} ($(uno.west)+(0,-2.3)$);
+
+  \draw[->, orange!90!black, line width=1.2pt] ($(uno.east)+(0,3.0)$) -- node[above,sloped]{D3 PWM} (servo.west);
+  \draw[->, purple!75!black, line width=1.2pt] ($(uno.east)+(0,2.1)$) -- node[above,sloped]{D4,D5} (tl.west);
+  \draw[->, purple!75!black, line width=1.2pt] ($(uno.east)+(0,1.1)$) -- node[above,sloped]{D8,D9} (clima.west);
+  \draw[->, orange!90!black, line width=1.2pt] ($(uno.east)+(0,-0.2)$) -- node[above,sloped]{D10 PWM} (light.west);
+  \draw[->, purple!75!black, line width=1.2pt] ($(uno.east)+(0,-1.3)$) -- node[above,sloped]{D11} (humled.west);
+  \draw[->, blue!75!black, line width=1.2pt] ($(uno.east)+(0,-2.6)$) -- node[below,sloped]{LCD bus D12,D13,A2-A5} (lcd.west);
+
+  \fill[white, draw=black] ($(uno.west)+(0,2.8)$) circle (0.07);
+  \fill[white, draw=black] ($(uno.west)+(0,1.8)$) circle (0.07);
+  \fill[white, draw=black] ($(uno.west)+(0,0.8)$) circle (0.07);
+  \fill[white, draw=black] ($(uno.west)+(0,-1.3)$) circle (0.07);
+  \fill[white, draw=black] ($(uno.west)+(0,-2.3)$) circle (0.07);
+  \fill[white, draw=black] ($(uno.east)+(0,3.0)$) circle (0.07);
+  \fill[white, draw=black] ($(uno.east)+(0,2.1)$) circle (0.07);
+  \fill[white, draw=black] ($(uno.east)+(0,1.1)$) circle (0.07);
+  \fill[white, draw=black] ($(uno.east)+(0,-0.2)$) circle (0.07);
+  \fill[white, draw=black] ($(uno.east)+(0,-1.3)$) circle (0.07);
+  \fill[white, draw=black] ($(uno.east)+(0,-2.6)$) circle (0.07);
+
+  \node[draw, rounded corners, fill=white, align=left, font=\footnotesize, anchor=north west] (legend) at (-8.3,-4.5) {
+    \textbf{Legend}\\
+    \textcolor{teal!80!black}{\rule{0.8cm}{1.5pt}}\ Analog inputs\\
+    \textcolor{purple!75!black}{\rule{0.8cm}{1.5pt}}\ Digital I/O\\
+    \textcolor{orange!90!black}{\rule{0.8cm}{1.5pt}}\ PWM outputs\\
+    \textcolor{blue!75!black}{\rule{0.8cm}{1.5pt}}\ LCD parallel bus
+  };
+\end{tikzpicture}%
+}
+\end{center}
+
 \section{Wiring notes}
 \begin{itemize}
   \item LEDs are connected with 220\,\textohm resistors to limit current.

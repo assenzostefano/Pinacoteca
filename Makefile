@@ -1,4 +1,4 @@
-.PHONY: test test-clean test-full test-full-r4 test-full-all full-test compile-r4 compile-wokwi
+.PHONY: test test-clean test-full test-full-r4 test-full-all full-test compile-r4 compile-wokwi mock-server
 
 BOARD ?= arduino:renesas_uno:unor4wifi
 R4_BOARD := arduino:renesas_uno:unor4wifi
@@ -23,6 +23,9 @@ compile-r4:
 
 compile-wokwi:
 	arduino-cli compile -b $(WOKWI_BOARD) --output-dir $(WOKWI_OUTPUT) ./Pinacoteca.ino
+
+mock-server:
+	python3 tools/mock_arduino_server.py
 
 test-full-all:
 	./test/run_tests.sh --clean

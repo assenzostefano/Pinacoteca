@@ -1,0 +1,137 @@
+\chapter{Controllo remoto, comunicazione App e miglioramenti di stabilita}
+
+\section{Obiettivo del capitolo}
+Questo capitolo documenta tutte le aggiunte introdotte per la comunicazione remota con app mobile: architettura software, protocollo comandi, strategia di test, ottimizzazioni per i limiti hardware e problemi riscontrati in Wokwi con relative soluzioni.
+
+\section{Architettura della comunicazione remota}
+La comunicazione e stata progettata a strati:
+
+\begin{itemize}
+  \item \textbf{Astrazione trasporto}: \texttt{bluetooth\_connection.h} definisce l'interfaccia comune.
+  \item \textbf{Trasporto BLE concreto}: \texttt{ble\_link.h} implementa l'interfaccia per Bluetooth Low Energy.
+  \item \textbf{Logica protocollo}: \texttt{command\_processor.h} interpreta i comandi, valida i payload e aggiorna lo stato.
+  \item \textbf{Orchestrazione}: \texttt{remote\_gateway.h} gestisce seriale, polling BLE e pubblicazione periodica dello stato.
+\end{itemize}
+
+Questa struttura semplifica manutenzione e sostituzione del componente di comunicazione.
+
+\section{Protocollo utilizzato dall'app}
+Il protocollo e testuale e pensato per integrazione semplice con App Inventor.
+
+\subsection{Comandi base}
+\begin{itemize}
+  \item \texttt{PING} $\rightarrow$ \texttt{PONG}
+  \item \texttt{VER} $\rightarrow$ \texttt{VER:1}
+  \item \texttt{GET:STATE}
+  \item \texttt{GET:MODE}
+  \item \texttt{MANUAL:ON} / \texttt{MANUAL:OFF}
+\end{itemize}
+
+\subsection{Comandi setpoint}
+\begin{itemize}
+  \item \texttt{SET:TEMP:<valore>} con range $[15.0,30.0]$
+  \item \texttt{SET:HUM:<valore>} con range $[40.0,80.0]$
+  \item \texttt{SET:LUX:<valore>} con range $[50,1200]$
+  \item \texttt{SET:PEOPLE:<valore>} con range $[0,\mathrm{maxPeople}]$
+\end{itemize}
+
+\subsection{Comandi override manuale}
+In modalita \texttt{MANUAL} l'app puo bypassare la logica automatica:
+\begin{itemize}
+  \item Servo: \texttt{SERVO:OPEN}, \texttt{SERVO:CLOSE}, \texttt{SERVO:ANGLE:<0..180>}
+  \item Attuatori: \texttt{ACT:GREEN:*}, \texttt{ACT:RED:*}, \texttt{ACT:HEAT:*}, \texttt{ACT:COOL:*}, \texttt{ACT:HUMIDIFIER:*}
+  \item PWM luci: \texttt{ACT:PLAFONIERE:PWM:<0..255>}
+\end{itemize}
+
+\subsection{Formato payload stato}
+Esempio:
+\begin{lstlisting}[style=cppstyle]
+STATE:T=21.8;H=58.0;L=170;P=3;S=90;M=MANUAL;TT=22.5;TH=60.0;TL=180
+\end{lstlisting}
+
+\subsection{Gestione errori}
+Per robustezza lato app sono previsti errori espliciti:
+\begin{itemize}
+  \item \texttt{ERR:EMPTY}, \texttt{ERR:UNKNOWN}, \texttt{ERR:MODE}, \texttt{ERR:SERVO}
+  \item Errori di range: \texttt{ERR:RANGE:*}
+  \item Errori di formato: \texttt{ERR:FORMAT:*}
+  \item Protezione overflow seriale: \texttt{ERR:TOO\_LONG}
+\end{itemize}
+
+\section{Strategia di validazione e test}
+La suite test e stata estesa con casi dedicati al controllo remoto:
+
+\begin{itemize}
+  \item correttezza protocollo (comandi validi e invalidi),
+  \item valori limite per tutti i range,
+  \item payload numerici malformati,
+  \item transizioni AUTO/MANUAL,
+  \item input seriale frammentato,
+  \item input seriale troppo lungo,
+  \item trasporto disconnesso,
+  \item coda comandi su cicli multipli.
+\end{itemize}
+
+Nei test viene usato un trasporto finto per validare la logica anche senza hardware BLE reale.
+
+\section{Ottimizzazioni software per stabilita}
+Sono state introdotte diverse ottimizzazioni per ridurre rischi di instabilita:
+
+\begin{itemize}
+  \item riduzione footprint RAM con tipi interi piu piccoli per pin e contatori,
+  \item rimozione di comportamento bloccante nel tornello e chiusura servo non bloccante,
+  \item riduzione churn dinamico delle stringhe nella generazione stato,
+  \item parsing numerico rigoroso per evitare conversioni non sicure,
+  \item separazione output build per target diversi,
+  \item workflow dedicati per simulazione e hardware reale.
+\end{itemize}
+
+Queste modifiche migliorano prevedibilita runtime e riducono problemi in simulazione/deploy.
+
+\section{Problemi riscontrati in Wokwi e soluzioni}
+
+\subsection{Problema A: mismatch board/firmware}
+Se la board simulata e il firmware compilato non coincidono, la simulazione risulta non funzionante.
+
+\textbf{Soluzione}: output separati:
+\begin{itemize}
+  \item Wokwi in \texttt{build-wokwi/}
+  \item hardware UNO R4 in \texttt{build-r4/}
+\end{itemize}
+
+\subsection{Problema B: chiave duplicata in \texttt{wokwi.toml}}
+Una chiave \texttt{elf} duplicata causava errore di parsing TOML.
+
+\textbf{Soluzione}: mantenere una sola entry \texttt{elf} e validare il file.
+
+\subsection{Problema C: servo non visibile in movimento}
+Dopo la rimozione dei delay bloccanti, il servo poteva aprire/chiudere troppo rapidamente nello stesso ciclo.
+
+\textbf{Soluzione}: introduzione chiusura temporizzata non bloccante e trigger su fronte pulsante.
+
+\section{Workflow build completo (comando unico)}
+Il progetto supporta un comando unico che esegue test completi e doppia compilazione:
+
+\begin{lstlisting}[style=cppstyle]
+make full-test
+\end{lstlisting}
+
+Questo comando esegue:
+\begin{enumerate}
+  \item test completi,
+  \item compilazione firmware Wokwi,
+  \item compilazione firmware UNO R4 WiFi.
+\end{enumerate}
+
+\section{Test app senza hardware}
+E stato aggiunto un mock server locale per iniziare test App Inventor senza scheda fisica:
+
+\begin{itemize}
+  \item script: \texttt{tools/mock\_arduino\_server.py}
+  \item comando: \texttt{make mock-server}
+\end{itemize}
+
+Con questo approccio puoi validare UI, parsing e flussi comandi prima dei test BLE reali.
+
+\section{Nota finale di deploy}
+Prima del rilascio finale e comunque necessario validare BLE su hardware UNO R4 WiFi reale, per verificare radio, latenza e comportamento in condizioni reali.

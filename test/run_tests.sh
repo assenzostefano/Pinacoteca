@@ -80,6 +80,7 @@ fi
 cmake -S "$SCRIPT_DIR" -B "$BUILD_DIR"
 cmake --build "$BUILD_DIR" -j
 ctest --test-dir "$BUILD_DIR" --output-on-failure
+python3 "$SCRIPT_DIR/mock_server_tests.py"
 
 if $WITH_ARDUINO; then
   ARDUINO_OUTPUT_DIR="$PROJECT_ROOT/build-r4"

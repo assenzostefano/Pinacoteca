@@ -26,3 +26,7 @@ ctest --test-dir build --output-on-failure
   - `humidity`, `humidifier`
   - `photoresistor`, `lighting_control`
   - `display`, `lcd`
+
+- Oltre ai test C++, viene eseguito anche un test di integrazione Python per il mock BLE virtuale:
+  - `test/mock_server_tests.py`
+  - valida connect/write/read/disconnect, endpoint sensori/attuatori e compatibilita legacy.

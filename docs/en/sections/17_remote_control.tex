@@ -1,0 +1,138 @@
+\chapter{Remote Control, App Communication, and Stability Improvements}
+
+\section{Purpose of this chapter}
+This chapter documents all additions introduced for remote communication with a mobile app, including protocol design, module architecture, validation strategy, software optimizations for memory constraints, and the issues encountered in Wokwi with their corresponding fixes.
+
+\section{Remote communication architecture}
+Remote communication is implemented as a layered design:
+
+\begin{itemize}
+  \item \textbf{Transport abstraction}: \texttt{bluetooth\_connection.h} defines a generic interface.
+  \item \textbf{Concrete BLE transport}: \texttt{ble\_link.h} implements the interface for BLE communication.
+  \item \textbf{Command processing}: \texttt{command\_processor.h} parses commands, validates payloads, and updates system state.
+  \item \textbf{Gateway orchestration}: \texttt{remote\_gateway.h} manages serial command input, BLE polling, and periodic state publication.
+\end{itemize}
+
+This separation makes the system maintainable and allows replacing the communication component with minimal code changes.
+
+\section{Protocol used by the app}
+The protocol is text-based and intentionally simple for App Inventor integration.
+
+\subsection{Core commands}
+\begin{itemize}
+  \item \texttt{PING} $\rightarrow$ \texttt{PONG}
+  \item \texttt{VER} $\rightarrow$ \texttt{VER:1}
+  \item \texttt{GET:STATE}
+  \item \texttt{GET:MODE}
+  \item \texttt{MANUAL:ON} / \texttt{MANUAL:OFF}
+\end{itemize}
+
+\subsection{Setpoint commands}
+\begin{itemize}
+  \item \texttt{SET:TEMP:<value>} with range $[15.0,30.0]$
+  \item \texttt{SET:HUM:<value>} with range $[40.0,80.0]$
+  \item \texttt{SET:LUX:<value>} with range $[50,1200]$
+  \item \texttt{SET:PEOPLE:<value>} with range $[0,\mathrm{maxPeople}]$
+\end{itemize}
+
+\subsection{Manual override commands}
+When in \texttt{MANUAL} mode, the app can bypass automatic logic:
+\begin{itemize}
+  \item Servo control: \texttt{SERVO:OPEN}, \texttt{SERVO:CLOSE}, \texttt{SERVO:ANGLE:<0..180>}
+  \item Actuator control: \texttt{ACT:GREEN:*}, \texttt{ACT:RED:*}, \texttt{ACT:HEAT:*}, \texttt{ACT:COOL:*}, \texttt{ACT:HUMIDIFIER:*}
+  \item Lighting PWM: \texttt{ACT:PLAFONIERE:PWM:<0..255>}
+\end{itemize}
+
+\subsection{State payload format}
+Example:
+\begin{lstlisting}[style=cppstyle]
+STATE:T=21.8;H=58.0;L=170;P=3;S=90;M=MANUAL;TT=22.5;TH=60.0;TL=180
+\end{lstlisting}
+
+\subsection{Error model}
+The protocol reports explicit errors for robust app-side handling:
+\begin{itemize}
+  \item \texttt{ERR:EMPTY}, \texttt{ERR:UNKNOWN}, \texttt{ERR:MODE}, \texttt{ERR:SERVO}
+  \item Range errors: \texttt{ERR:RANGE:*}
+  \item Format errors: \texttt{ERR:FORMAT:*}
+  \item Serial overflow guard: \texttt{ERR:TOO\_LONG}
+\end{itemize}
+
+\section{Validation and test strategy}
+The test suite was extended with dedicated remote-control tests:
+
+\begin{itemize}
+  \item protocol correctness (normal commands and invalid commands),
+  \item boundary values for every critical range,
+  \item malformed payload handling,
+  \item AUTO/MANUAL transition behavior,
+  \item fragmented serial input,
+  \item oversized serial command handling,
+  \item disconnected transport behavior,
+  \item queue processing across update cycles.
+\end{itemize}
+
+A fake transport implementation is used in tests to validate logic independently from real BLE hardware.
+
+\section{Software optimization for stability}
+Several improvements were introduced to keep execution stable, especially on constrained targets:
+
+\begin{itemize}
+  \item reduced memory footprint by using narrower integer types for pins and counters,
+  \item replaced blocking turnstile behavior with a non-blocking timed servo close,
+  \item reduced dynamic string churn in state payload generation,
+  \item strict numeric parsing to prevent unsafe conversions,
+  \item board-specific build outputs to avoid firmware overwrite between targets,
+  \item separated Wokwi and real-hardware compile workflows.
+\end{itemize}
+
+These changes reduced instability risk and made behavior more deterministic in simulation and deployment.
+
+\section{Wokwi issues encountered and fixes}
+During integration, multiple Wokwi-related issues were observed:
+
+\subsection{Issue A: board and firmware mismatch}
+If the simulator board and compiled firmware target do not match, simulation appears non-functional.
+
+\textbf{Fix}: use dedicated outputs and commands:
+\begin{itemize}
+  \item Wokwi firmware in \texttt{build-wokwi/}
+  \item real UNO R4 firmware in \texttt{build-r4/}
+\end{itemize}
+
+\subsection{Issue B: duplicated key in \texttt{wokwi.toml}}
+An accidental duplicated \texttt{elf} key caused TOML parsing failure.
+
+\textbf{Fix}: keep a single \texttt{elf} entry and validate TOML syntax.
+
+\subsection{Issue C: servo not visibly moving in simulation}
+After removing blocking delays, the servo could open/close too quickly in the same control phase.
+
+\textbf{Fix}: introduce non-blocking timed closing and edge-triggered button logic.
+
+\section{Build workflow (single command)}
+The project now supports a complete command that runs tests and compiles both targets:
+
+\begin{lstlisting}[style=cppstyle]
+make full-test
+\end{lstlisting}
+
+It performs:
+\begin{enumerate}
+  \item full unit/integration test run,
+  \item Wokwi firmware compilation,
+  \item UNO R4 WiFi firmware compilation.
+\end{enumerate}
+
+\section{No-hardware app testing}
+A local mock server was added to validate app behavior before hardware deployment:
+
+\begin{itemize}
+  \item script: \texttt{tools/mock\_arduino\_server.py}
+  \item command: \texttt{make mock-server}
+\end{itemize}
+
+This enables early testing of UI flows, command sequencing, and parser logic without BLE radio dependency.
+
+\section{Final deployment note}
+For final acceptance, BLE communication must still be validated on real UNO R4 WiFi hardware, even if protocol and UI behavior are pre-validated through mocks and Wokwi.
