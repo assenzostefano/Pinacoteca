@@ -17,6 +17,7 @@
 #include "../lib/lighting/lighting_control.h"
 #include "../lib/display/display.h"
 #include "../lib/display/lcd.h"
+#include "../lib/system/error_registry.h"
 #include "../lib/bluetooth/bluetooth_connection.h"
 #include "../lib/bluetooth/command_processor.h"
 #include "../lib/bluetooth/remote_gateway.h"
@@ -59,6 +60,7 @@ protected:
     void SetUp() override {
         resetArduinoMocks();
         Serial.clear();
+        pinacotecaClearAllErrors();
     }
 };
 
@@ -94,6 +96,7 @@ TEST_F(BaseTest, StoplightAtMaxSetsRed) {
 
 TEST_F(BaseTest, AntiSufferingServoAllowsSafeMove) {
     Servo s;
+    s.attach(3);
     s.write(90);
     EXPECT_TRUE(antiSufferingServo(20, s));
     EXPECT_EQ(s.read(), 110);
@@ -101,6 +104,7 @@ TEST_F(BaseTest, AntiSufferingServoAllowsSafeMove) {
 
 TEST_F(BaseTest, AntiSufferingServoBlocksOutOfRange) {
     Servo s;
+    s.attach(3);
     s.write(170);
     EXPECT_FALSE(antiSufferingServo(20, s));
     ASSERT_FALSE(Serial.logs.empty());
@@ -110,6 +114,7 @@ TEST_F(BaseTest, AntiSufferingServoBlocksOutOfRange) {
 TEST_F(BaseTest, TurnstileIncrementsAndDecrementsPeople) {
     Turnstile t(6, 7, 5);
     Servo s;
+    s.attach(3);
     s.write(0);
     t.begin(&s);
 
@@ -131,6 +136,7 @@ TEST_F(BaseTest, TurnstileIncrementsAndDecrementsPeople) {
 TEST_F(BaseTest, TurnstileRespectsMaxPeople) {
     Turnstile t(6, 7, 1);
     Servo s;
+    s.attach(3);
     s.write(0);
     t.begin(&s);
 
@@ -143,6 +149,7 @@ TEST_F(BaseTest, TurnstileRespectsMaxPeople) {
 TEST_F(BaseTest, TurnstileBeginConfiguresPins) {
     Turnstile t(6, 7, 5);
     Servo s;
+    s.attach(3);
     t.begin(&s);
     EXPECT_EQ(__mock_pin_mode[6], INPUT);
     EXPECT_EQ(__mock_pin_mode[7], INPUT);
@@ -151,9 +158,11 @@ TEST_F(BaseTest, TurnstileBeginConfiguresPins) {
 TEST_F(BaseTest, TemperatureReaderReturnsErrorAtExtremes) {
     __mock_analog_read[A0] = 0;
     EXPECT_FLOAT_EQ(readTemperatureCelsius(A0), -999.0f);
+    EXPECT_TRUE(pinacotecaHasError(PIN_ERR_TEMP_SENSOR));
 
     __mock_analog_read[A0] = 1023;
     EXPECT_FLOAT_EQ(readTemperatureCelsius(A0), -999.0f);
+    EXPECT_TRUE(pinacotecaHasError(PIN_ERR_TEMP_SENSOR));
 }
 
 TEST_F(BaseTest, TemperatureReaderReturnsFiniteForValidInput) {
@@ -161,6 +170,7 @@ TEST_F(BaseTest, TemperatureReaderReturnsFiniteForValidInput) {
     float t = readTemperatureCelsius(A0);
     EXPECT_TRUE(std::isfinite(t));
     EXPECT_NE(t, -999.0f);
+    EXPECT_FALSE(pinacotecaHasError(PIN_ERR_TEMP_SENSOR));
 }
 
 TEST_F(BaseTest, ThermostatSensorErrorTurnsEverythingOff) {
@@ -208,9 +218,11 @@ TEST_F(BaseTest, ThermostatCoolingBranch) {
 TEST_F(BaseTest, HumidityReadAndError) {
     dht_sensor.setHumidity(66.0f);
     EXPECT_FLOAT_EQ(readHumidity(), 66.0f);
+    EXPECT_FALSE(pinacotecaHasError(PIN_ERR_HUM_SENSOR));
 
     dht_sensor.setHumidity(NAN);
     EXPECT_FLOAT_EQ(readHumidity(), -999.0f);
+    EXPECT_TRUE(pinacotecaHasError(PIN_ERR_HUM_SENSOR));
 }
 
 TEST_F(BaseTest, HumidifierHighHumidityTurnsOnPin) {
@@ -246,10 +258,16 @@ TEST_F(BaseTest, HumidifierSetGetTargetWorks) {
 
 TEST_F(BaseTest, PhotoresistorLuxEdgeCases) {
     __mock_analog_read[A1] = 0;
-    EXPECT_FLOAT_EQ(readLux(A1), 0.0f);
+    EXPECT_FLOAT_EQ(readLux(A1), -999.0f);
+    EXPECT_TRUE(pinacotecaHasError(PIN_ERR_LIGHT_SENSOR));
 
     __mock_analog_read[A1] = 1023;
-    EXPECT_FLOAT_EQ(readLux(A1), 9999.0f);
+    EXPECT_FLOAT_EQ(readLux(A1), -999.0f);
+    EXPECT_TRUE(pinacotecaHasError(PIN_ERR_LIGHT_SENSOR));
+
+    __mock_analog_read[A1] = 512;
+    EXPECT_GT(readLux(A1), 0.0f);
+    EXPECT_FALSE(pinacotecaHasError(PIN_ERR_LIGHT_SENSOR));
 }
 
 TEST_F(BaseTest, LightingControlWritesPwm) {
@@ -257,12 +275,15 @@ TEST_F(BaseTest, LightingControlWritesPwm) {
     lc.begin();
 
     __mock_analog_read[A1] = 0;
-    EXPECT_TRUE(lc.update());
-    EXPECT_EQ(__mock_analog_write[10], 255);
-
-    __mock_analog_read[A1] = 1023;
-    EXPECT_TRUE(lc.update());
+    EXPECT_FALSE(lc.update());
     EXPECT_EQ(__mock_analog_write[10], 0);
+    EXPECT_TRUE(pinacotecaHasError(PIN_ERR_LIGHT_SENSOR));
+
+    __mock_analog_read[A1] = 512;
+    EXPECT_TRUE(lc.update());
+    EXPECT_GE(__mock_analog_write[10], 0);
+    EXPECT_LE(__mock_analog_write[10], 255);
+    EXPECT_FALSE(pinacotecaHasError(PIN_ERR_LIGHT_SENSOR));
 }
 
 TEST_F(BaseTest, LightingControlBeginAndSetGetTarget) {
@@ -309,13 +330,16 @@ TEST_F(BaseTest, DisplayPanelRotatesPages) {
 
     __mock_millis = 6000;
     dp.update(2, th, hc, lc);
-    std::string page1 = LiquidCrystal::lastInstance->line(0);
-    EXPECT_TRUE(page1.find("T:") != std::string::npos);
 
     __mock_millis = 11000;
     dp.update(2, th, hc, lc);
+    std::string page1 = LiquidCrystal::lastInstance->line(0);
+    EXPECT_TRUE(page1.find("T:") != std::string::npos);
+
+    __mock_millis = 16000;
+    dp.update(2, th, hc, lc);
     std::string page2 = LiquidCrystal::lastInstance->line(0);
-    EXPECT_TRUE(page2.find("Error") != std::string::npos || page2.find("Fault") != std::string::npos);
+    EXPECT_TRUE(page2.find("FAULT") != std::string::npos);
 }
 
 TEST_F(BaseTest, DisplayDatePageHasValidWeekdayPrefix) {
@@ -360,13 +384,19 @@ TEST_F(BaseTest, DisplayStatusPageShowsTurnstileCountExactly) {
     __mock_analog_read[A1] = 200;
     dht_sensor.setHumidity(60.0f);
 
+    __mock_millis = 1000;
+    dp.update(5, th, hc, lc);
+
     __mock_millis = 6000;
+    dp.update(5, th, hc, lc);
+
+    __mock_millis = 11000;
     dp.update(5, th, hc, lc);
     std::string line1 = LiquidCrystal::lastInstance->line(1);
     EXPECT_TRUE(line1.find("TR:5/5") != std::string::npos);
 }
 
-TEST_F(BaseTest, DisplayErrorPageShowsHumidityHigh) {
+TEST_F(BaseTest, DisplayFaultPageShowsHumidityHigh) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
@@ -381,16 +411,21 @@ TEST_F(BaseTest, DisplayErrorPageShowsHumidityHigh) {
     __mock_analog_read[A1] = 200;
     dht_sensor.setHumidity(90.0f);
 
+    __mock_millis = 1000;
+    dp.update(2, th, hc, lc); // page 0
     __mock_millis = 6000;
-    dp.update(2, th, hc, lc); // page 1
-
+    dp.update(2, th, hc, lc); // page 0 + advance
     __mock_millis = 11000;
+    dp.update(2, th, hc, lc); // page 1 + advance
+    __mock_millis = 16000;
     dp.update(2, th, hc, lc);
+    std::string line0 = LiquidCrystal::lastInstance->line(0);
     std::string line1 = LiquidCrystal::lastInstance->line(1);
-    EXPECT_TRUE(line1.find("Humidity HIGH!") != std::string::npos);
+    EXPECT_TRUE(line0.find("FAULT") != std::string::npos);
+    EXPECT_TRUE(line1.find("Humidity HIGH") != std::string::npos);
 }
 
-TEST_F(BaseTest, DisplayErrorPageShowsTurnstileError) {
+TEST_F(BaseTest, DisplayFaultPageShowsTurnstileFault) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
@@ -405,13 +440,50 @@ TEST_F(BaseTest, DisplayErrorPageShowsTurnstileError) {
     __mock_analog_read[A1] = 200;
     dht_sensor.setHumidity(65.0f);
 
+    __mock_millis = 1000;
+    dp.update(7, th, hc, lc);
     __mock_millis = 6000;
-    dp.update(7, th, hc, lc); // page 1
-
+    dp.update(7, th, hc, lc);
     __mock_millis = 11000;
     dp.update(7, th, hc, lc);
+    __mock_millis = 16000;
+    dp.update(7, th, hc, lc);
+    std::string line0 = LiquidCrystal::lastInstance->line(0);
     std::string line1 = LiquidCrystal::lastInstance->line(1);
-    EXPECT_TRUE(line1.find("Turnstile ERROR") != std::string::npos);
+    EXPECT_TRUE(line0.find("FAULT") != std::string::npos);
+    EXPECT_TRUE(line1.find("Turnstile FAULT") != std::string::npos);
+}
+
+TEST_F(BaseTest, DisplayErrorPageShownOnlyWithRealSensorError) {
+    Thermostat th(A0, 20.0f, 9, 8);
+    HumidifierControl hc(11, 65.0f);
+    LightingControl lc(A1, 10, 200);
+    DisplayPanel dp(12, 13, A2, A3, A4, A5, 5);
+
+    th.begin();
+    hc.begin();
+    lc.begin();
+    dp.begin();
+
+    __mock_analog_read[A0] = 0;
+    __mock_analog_read[A1] = 200;
+    dht_sensor.setHumidity(65.0f);
+
+    __mock_millis = 1000;
+    dp.update(2, th, hc, lc); // page 0
+    __mock_millis = 6000;
+    dp.update(2, th, hc, lc); // page 0 + advance
+    __mock_millis = 11000;
+    dp.update(2, th, hc, lc); // page 1 + advance
+    __mock_millis = 16000;
+    dp.update(2, th, hc, lc); // page 2 + advance
+    __mock_millis = 21000;
+    dp.update(2, th, hc, lc); // page 3 (error page because sensor error exists)
+
+    std::string line0 = LiquidCrystal::lastInstance->line(0);
+    std::string line1 = LiquidCrystal::lastInstance->line(1);
+    EXPECT_TRUE(line0.find("ERROR") != std::string::npos);
+    EXPECT_TRUE(line1.find("Temp sensor FAIL") != std::string::npos);
 }
 
 TEST_F(BaseTest, BluetoothCommandProcessorHandlesModeAndState) {
@@ -459,6 +531,7 @@ TEST_F(BaseTest, BluetoothCommandProcessorManualOverrideControlsActuators) {
     LightingControl lc(A1, 10, 200);
     Turnstile ts(6, 7, 5);
     Servo s;
+    s.attach(3);
     s.write(0);
     ts.begin(&s);
 

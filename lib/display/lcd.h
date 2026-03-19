@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <stdio.h>
 #include "display.h"
+#include "../system/error_registry.h"
 #include "../temperature/thermostat.h"
 #include "../humidity/humidifier.h"
 #include "../lighting/lighting_control.h"
@@ -165,22 +166,48 @@ class DisplayPanel {
 			_display.print(line2);
 		}
 
-		void printErrorPage(int currentPeople, float currentTemp, float targetTemp, float currentHum, float targetHum) {
-			char line1[17] = "Error / Fault";
-			char line2[17] = "No errors";
+		bool hasSensorError(float currentTemp, float currentHum, float currentLux) {
+			if (currentTemp <= -900.0 || currentHum <= -900.0 || currentLux <= -900.0) {
+				return true;
+			}
+
+			return pinacotecaHasAnyError();
+		}
+
+		void printErrorPage(float currentTemp, float currentHum, float currentLux) {
+			char line1[17] = "ERROR";
+			char line2[17] = "No sensor errors";
 
 			if (currentTemp <= -900.0) {
-				snprintf(line2, sizeof(line2), "Temperature ERR");
-			} else if (currentTemp > (targetTemp + 1.0)) {
-				snprintf(line2, sizeof(line2), "Temperature HIGH!");
+				snprintf(line2, sizeof(line2), "Temp sensor FAIL");
 			} else if (currentHum <= -900.0) {
-				snprintf(line2, sizeof(line2), "Humidity ERROR");
+				snprintf(line2, sizeof(line2), "Hum sensor FAIL");
+			} else if (currentLux <= -900.0) {
+				snprintf(line2, sizeof(line2), "Light sensor FAIL");
+			} else if (pinacotecaHasAnyError()) {
+				snprintf(line2, sizeof(line2), "%s", pinacotecaFirstErrorText());
+			}
+
+			_display.setCursor(0, 0);
+			_display.print(line1);
+			_display.setCursor(0, 1);
+			_display.print(line2);
+		}
+
+		void printFaultPage(int currentPeople, float currentTemp, float targetTemp, float currentHum, float targetHum) {
+			char line1[17] = "FAULT";
+			char line2[17] = "No faults";
+
+			if (currentTemp > (targetTemp + 1.0)) {
+				snprintf(line2, sizeof(line2), "Temperature HIGH");
+			} else if (currentTemp < (targetTemp - 1.0)) {
+				snprintf(line2, sizeof(line2), "Temperature LOW");
 			} else if (currentHum > (targetHum + 2.0)) {
-				snprintf(line2, sizeof(line2), "Humidity HIGH!");
+				snprintf(line2, sizeof(line2), "Humidity HIGH");
 			} else if (currentHum < (targetHum - 2.0)) {
-				snprintf(line2, sizeof(line2), "Humidity LOW!");
+				snprintf(line2, sizeof(line2), "Humidity LOW");
 			} else if (currentPeople < 0 || currentPeople > _maxPeople) {
-				snprintf(line2, sizeof(line2), "Turnstile ERROR");
+				snprintf(line2, sizeof(line2), "Turnstile FAULT");
 			}
 
 			_display.setCursor(0, 0);
@@ -219,26 +246,35 @@ class DisplayPanel {
 			}
 			_lastRefresh = now;
 
-			if (now - _lastPageChange >= 5000) {
-				_page = (_page + 1) % 3;
-				_lastPageChange = now;
-			}
-
 			float currentTemp = thermostat.getCurrentTemperature();
 			float targetTemp = thermostat.getTargetTemperature();
 			float currentHum = humidifier.getCurrentHumidity();
 			float targetHum = humidifier.getTargetHumidity();
 			float currentLux = lighting.getCurrentLux();
 			int targetLux = lighting.getTargetLux();
+			bool sensorError = hasSensorError(currentTemp, currentHum, currentLux);
+			byte pageCount = sensorError ? 4 : 3;
 
 			_display.clear();
+			if (_page >= pageCount) {
+				_page = 0;
+			}
 
 			if (_page == 0) {
 				printDateTimePage();
 			} else if (_page == 1) {
 				printStatusPage(currentPeople, currentTemp, targetTemp, currentHum, targetHum, currentLux, targetLux);
+			} else if (_page == 2) {
+				printFaultPage(currentPeople, currentTemp, targetTemp, currentHum, targetHum);
+			} else if (sensorError) {
+				printErrorPage(currentTemp, currentHum, currentLux);
 			} else {
-				printErrorPage(currentPeople, currentTemp, targetTemp, currentHum, targetHum);
+				printDateTimePage();
+			}
+
+			if (now - _lastPageChange >= 5000) {
+				_page = (_page + 1) % pageCount;
+				_lastPageChange = now;
 			}
 		}
 };

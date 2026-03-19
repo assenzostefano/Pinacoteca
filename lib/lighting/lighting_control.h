@@ -24,18 +24,37 @@ class LightingControl {
 
         bool update() {
             float currentLux = readLux(_sensorPin);
+            if (currentLux <= -900.0) {
+                pinacotecaSetError(PIN_ERR_LIGHT_SENSOR);
+                if (!ledDimming(_dimmerPin, 0)) {
+                    pinacotecaSetError(PIN_ERR_LIGHT_ACTUATOR);
+                }
+                return false;
+            }
+
+            pinacotecaClearError(PIN_ERR_LIGHT_SENSOR);
             float missingLight = _targetLux - currentLux;
             
             int pwm_value = 0;
             
-            if (missingLight > 0) { // If we need more light, calculate the PWM value
-                pwm_value = 255; // TODO: For Wokwi limitations
-                pwm_value = constrain(pwm_value, 0, 255);
+            if (missingLight > 0) {
+#if defined(ARDUINO_ARCH_AVR)
+                pwm_value = 255;
+#else
+                float deficitRatio = missingLight / _targetLux;
+                deficitRatio = constrain(deficitRatio, 0.0f, 1.0f);
+                pwm_value = static_cast<int>(deficitRatio * 255.0f);
+#endif
             } else {
                 pwm_value = 0;
             }
             
-            ledDimming(_dimmerPin, pwm_value);
+            if (!ledDimming(_dimmerPin, pwm_value)) {
+                pinacotecaSetError(PIN_ERR_LIGHT_ACTUATOR);
+                return false;
+            }
+
+            pinacotecaClearError(PIN_ERR_LIGHT_ACTUATOR);
             
             return true;
         }

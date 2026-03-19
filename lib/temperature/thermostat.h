@@ -34,10 +34,14 @@ class Thermostat {
             unsigned long current_millis = millis();
             
             if (temperature_celsius == -999.0) { // If sensor error is detected
-                led(_heatingPin, LOW);
-                led(_coolingPin, LOW);
+                pinacotecaSetError(PIN_ERR_TEMP_SENSOR);
+                if (!led(_heatingPin, LOW) || !led(_coolingPin, LOW)) {
+                    pinacotecaSetError(PIN_ERR_THERMOSTAT_ACTUATOR);
+                }
                 return false;
             }
+
+            pinacotecaClearError(PIN_ERR_TEMP_SENSOR);
             
             float tolerance = 1.0; 
             int desired_action = 0; 
@@ -54,15 +58,23 @@ class Thermostat {
                 _currentState = desired_action;
                 
                 if (_currentState == 0) { // OFF
-                     led(_heatingPin, LOW);
-                     led(_coolingPin, LOW);
+                     if (!led(_heatingPin, LOW) || !led(_coolingPin, LOW)) {
+                        pinacotecaSetError(PIN_ERR_THERMOSTAT_ACTUATOR);
+                        return false;
+                     }
                 } else if (_currentState == 1) { // Heating
-                     led(_heatingPin, HIGH);
-                     led(_coolingPin, LOW);
+                     if (!led(_heatingPin, HIGH) || !led(_coolingPin, LOW)) {
+                        pinacotecaSetError(PIN_ERR_THERMOSTAT_ACTUATOR);
+                        return false;
+                     }
                 } else if (_currentState == 2) { // Cooling
-                     led(_heatingPin, LOW);
-                     led(_coolingPin, HIGH);
+                     if (!led(_heatingPin, LOW) || !led(_coolingPin, HIGH)) {
+                        pinacotecaSetError(PIN_ERR_THERMOSTAT_ACTUATOR);
+                        return false;
+                     }
                 }
+
+                 pinacotecaClearError(PIN_ERR_THERMOSTAT_ACTUATOR);
 
                 _previousMillis = current_millis; // Reset timer when state changes or is OFF
                 return true;
@@ -70,13 +82,17 @@ class Thermostat {
             } else {
                 // Pause before changing state to prevent rapid toggling
 
-                led(_heatingPin, LOW);
-                led(_coolingPin, LOW);
+                if (!led(_heatingPin, LOW) || !led(_coolingPin, LOW)) {
+                    pinacotecaSetError(PIN_ERR_THERMOSTAT_ACTUATOR);
+                    return false;
+                }
 
                 if (current_millis - _previousMillis >= _pauseTime) { 
                     _currentState = desired_action; 
                     Serial.println("Climate mode changed successfully.");
                 }
+
+                pinacotecaClearError(PIN_ERR_THERMOSTAT_ACTUATOR);
             }
 
             return true;

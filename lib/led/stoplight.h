@@ -21,12 +21,18 @@ class Stoplight {
 
         void update(int currentPeople, int maxPeople) {
             if (currentPeople < maxPeople) {
-                led(_greenPin, HIGH);
-                led(_redPin, LOW);
+                if (!led(_greenPin, HIGH) || !led(_redPin, LOW)) {
+                    pinacotecaSetError(PIN_ERR_STOPLIGHT_ACTUATOR);
+                    return;
+                }
             } else {
-                led(_greenPin, LOW);
-                led(_redPin, HIGH);
+                if (!led(_greenPin, LOW) || !led(_redPin, HIGH)) {
+                    pinacotecaSetError(PIN_ERR_STOPLIGHT_ACTUATOR);
+                    return;
+                }
             }
+
+            pinacotecaClearError(PIN_ERR_STOPLIGHT_ACTUATOR);
         }
 };
 

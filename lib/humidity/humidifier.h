@@ -23,21 +23,37 @@ class HumidifierControl {
             float currentHumidity = readHumidity();
             
             if (currentHumidity == -999.0) { // Check if the humidity reading is valid
-                led(_humidifierPin, LOW);
+                pinacotecaSetError(PIN_ERR_HUM_SENSOR);
+                if (!led(_humidifierPin, LOW)) {
+                    pinacotecaSetError(PIN_ERR_HUMIDIFIER_ACTUATOR);
+                }
                 return false;
             }
+
+            pinacotecaClearError(PIN_ERR_HUM_SENSOR);
 
             float tolerance = 2.0; 
 
             if (currentHumidity > (_targetHumidity + tolerance)) {
-                led(_humidifierPin, HIGH); // Too much humidity -> Dehumidifier ON
+                if (!led(_humidifierPin, HIGH)) {
+                    pinacotecaSetError(PIN_ERR_HUMIDIFIER_ACTUATOR);
+                    return false;
+                }
 
             } else if (currentHumidity < (_targetHumidity - tolerance)) {
-                led(_humidifierPin, LOW); // Too low humidity -> Humidifier ON
+                if (!led(_humidifierPin, LOW)) {
+                    pinacotecaSetError(PIN_ERR_HUMIDIFIER_ACTUATOR);
+                    return false;
+                }
                 
             } else {
-                led(_humidifierPin, LOW); // Optimal humidity -> Both OFF
+                if (!led(_humidifierPin, LOW)) {
+                    pinacotecaSetError(PIN_ERR_HUMIDIFIER_ACTUATOR);
+                    return false;
+                }
             }
+
+            pinacotecaClearError(PIN_ERR_HUMIDIFIER_ACTUATOR);
             
             return true;
         }

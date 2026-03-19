@@ -10,6 +10,7 @@ public:
     void attach(int pin) { _pin = pin; }
     void write(int pos) { _pos = pos; }
     int read() const { return _pos; }
+    bool attached() const { return _pin >= 0; }
     int pin() const { return _pin; }
 };
 

@@ -2,13 +2,17 @@
 #define PHOTORESISTOR_H
 
 #include <Arduino.h>
+#include "../system/error_registry.h"
 
 float readLux(int light_sensor_pin) {
     int analogValue = analogRead(light_sensor_pin);
     
-    // Handle edge cases to avoid division by zero or negative lux values
-    if (analogValue <= 0) return 0.0;
-    if (analogValue >= 1023) return 9999.0;
+    if (analogValue <= 0 || analogValue >= 1023) {
+        pinacotecaSetError(PIN_ERR_LIGHT_SENSOR);
+        return -999.0;
+    }
+
+    pinacotecaClearError(PIN_ERR_LIGHT_SENSOR);
     
     const float GAMMA = 0.7;
     const float RL10 = 50;

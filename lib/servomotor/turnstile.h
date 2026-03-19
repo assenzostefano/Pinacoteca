@@ -34,14 +34,26 @@ class Turnstile {
             _servo = servo;
             pinMode(_inButton, INPUT);
             pinMode(_outButton, INPUT);
+
+            if (_servo == nullptr) {
+                pinacotecaSetError(PIN_ERR_TURNSTILE);
+            } else {
+                pinacotecaClearError(PIN_ERR_TURNSTILE);
+            }
         }
 
         void update() {
-            if (!_servo) return; // Ensure servo is initialized
+            if (!_servo) {
+                pinacotecaSetError(PIN_ERR_TURNSTILE);
+                return;
+            }
 
             unsigned long now = millis();
             if (_isGateOpen && now >= _closeAtMillis) {
-                moveServo(-90);
+                if (!moveServo(-90)) {
+                    pinacotecaSetError(PIN_ERR_TURNSTILE);
+                    return;
+                }
                 _isGateOpen = false;
             }
 
@@ -59,18 +71,26 @@ class Turnstile {
             }
 
             if (inPressed && _currentPeople < _maxPeople) {
-                moveServo(90);
+                if (!moveServo(90)) {
+                    pinacotecaSetError(PIN_ERR_TURNSTILE);
+                    return;
+                }
                 _currentPeople++;
                 _isGateOpen = true;
                 _closeAtMillis = now + _openTimeMs;
             }
 
             if (outPressed && _currentPeople > 0) {
-                moveServo(90);
+                if (!moveServo(90)) {
+                    pinacotecaSetError(PIN_ERR_TURNSTILE);
+                    return;
+                }
                 _currentPeople--;
                 _isGateOpen = true;
                 _closeAtMillis = now + _openTimeMs;
             }
+
+            pinacotecaClearError(PIN_ERR_TURNSTILE);
         }
 
         int getPeopleCount() const { return _currentPeople; }
@@ -82,8 +102,14 @@ class Turnstile {
         }
 
     private:
-        void moveServo(int angle) {
-            antiSufferingServo(angle, *_servo);
+        bool moveServo(int angle) {
+            if (!antiSufferingServo(angle, *_servo)) {
+                pinacotecaSetError(PIN_ERR_SERVO);
+                return false;
+            }
+
+            pinacotecaClearError(PIN_ERR_SERVO);
+            return true;
         }
 };
 
