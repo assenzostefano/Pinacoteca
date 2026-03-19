@@ -46,12 +46,18 @@ const int PIN_LCD_D7 = A5;
 
 Servo myServo;
 
-Turnstile entranceTurnstile(PIN_IN_BUTTON, PIN_OUT_BUTTON, 5); // Max 5 people
+const int MAX_PEOPLE = 5;
+const float TARGET_TEMP_C = 20.0;
+const int TARGET_LUX = 200;
+const float TARGET_HUMIDITY = 65.0;
+const unsigned long THERMOSTAT_PAUSE_MS = 60000; // Impostato a 60s per il deploy reale
+
+Turnstile entranceTurnstile(PIN_IN_BUTTON, PIN_OUT_BUTTON, MAX_PEOPLE);
 Stoplight trafficLight(PIN_GREEN_LIGHT, PIN_RED_LIGHT);
-Thermostat mainThermostat(PIN_TEMPERATURE_SENSOR, 20.0, PIN_YELLOW_LIGHT, PIN_BLU_LIGHT); // Target 20°C
-LightingControl galleryLighting(PIN_PHOTORESISTOR, PIN_PLAFONIERE, 200); // Target 200 LUX
-HumidifierControl galleryHumidifier(IS_HUMIDIFIER_LED, 65.0); // Target 65% humidity
-DisplayPanel galleryDisplay(PIN_LCD_RS, PIN_LCD_EN, PIN_LCD_D4, PIN_LCD_D5, PIN_LCD_D6, PIN_LCD_D7, 5);
+Thermostat mainThermostat(PIN_TEMPERATURE_SENSOR, TARGET_TEMP_C, PIN_YELLOW_LIGHT, PIN_BLU_LIGHT, THERMOSTAT_PAUSE_MS);
+LightingControl galleryLighting(PIN_PHOTORESISTOR, PIN_PLAFONIERE, TARGET_LUX);
+HumidifierControl galleryHumidifier(IS_HUMIDIFIER_LED, TARGET_HUMIDITY);
+DisplayPanel galleryDisplay(PIN_LCD_RS, PIN_LCD_EN, PIN_LCD_D4, PIN_LCD_D5, PIN_LCD_D6, PIN_LCD_D7, MAX_PEOPLE);
 
 #if PINACOTECA_REMOTE_ENABLED
 BleLink bluetoothConnection;

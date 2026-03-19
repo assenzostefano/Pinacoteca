@@ -17,11 +17,11 @@ class Thermostat {
         unsigned long _pauseTime;
 
     public:
-        Thermostat(int sensorPin, float desiredTemperature, int heatingPin, int coolingPin)
+        Thermostat(int sensorPin, float desiredTemperature, int heatingPin, int coolingPin, unsigned long pauseTime = 5000)
             : _sensorPin(static_cast<uint8_t>(sensorPin)),
               _heatingPin(static_cast<uint8_t>(heatingPin)),
               _coolingPin(static_cast<uint8_t>(coolingPin)),
-              _desiredTemperature(desiredTemperature), _currentState(0), _previousMillis(0), _pauseTime(5000) {} // TODO: 5000ms for testing, real is 60000ms
+              _desiredTemperature(desiredTemperature), _currentState(0), _previousMillis(0), _pauseTime(pauseTime) {}
 
         void begin() {
             pinMode(_sensorPin, INPUT);
