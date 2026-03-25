@@ -4,12 +4,12 @@
 #include <Arduino.h>
 
 #include "command_processor.h"
-#include "bluetooth_connection.h"
+#include "wifi_connection.h"
 
 class RemoteControlGateway {
     private:
         CommandProcessor _commandProcessor;
-        BluetoothConnection& _bluetooth;
+        WifiConnection& _wifi;
 
         unsigned long _statePeriodMs;
         unsigned long _lastStateMillis;
@@ -25,45 +25,45 @@ class RemoteControlGateway {
             LightingControl* lighting,
             Turnstile* turnstile,
             Servo* servo,
-                        int greenPin,
-                        int redPin,
-                        int heatingPin,
-                        int coolingPin,
-                        int humidifierPin,
-                        int plafonierePin,
-                        BluetoothConnection& bluetooth,
+            int greenPin,
+            int redPin,
+            int heatingPin,
+            int coolingPin,
+            int humidifierPin,
+            int plafonierePin,
+            WifiConnection& wifi,
             unsigned long statePeriodMs = 1000
         )
-                        : _commandProcessor(
-                                thermostat,
-                                humidifier,
-                                lighting,
-                                turnstile,
-                                servo,
-                                greenPin,
-                                redPin,
-                                heatingPin,
-                                coolingPin,
-                                humidifierPin,
-                                plafonierePin
-                            ),
-                            _bluetooth(bluetooth),
+            : _commandProcessor(
+                  thermostat,
+                  humidifier,
+                  lighting,
+                  turnstile,
+                  servo,
+                  greenPin,
+                  redPin,
+                  heatingPin,
+                  coolingPin,
+                  humidifierPin,
+                  plafonierePin
+              ),
+              _wifi(wifi),
               _statePeriodMs(statePeriodMs),
               _lastStateMillis(0),
-                              _serialBufferLen(0),
-                              _serialOverflow(false) {}
+              _serialBufferLen(0),
+              _serialOverflow(false) {}
 
         void begin() {
-                        _bluetooth.begin();
+            _wifi.begin();
         }
 
         bool isManualBypassEnabled() const {
-                        return _commandProcessor.isManualBypassEnabled();
+            return _commandProcessor.isManualBypassEnabled();
         }
 
         void update() {
             handleSerial();
-            handleBle();
+            handleWifi();
             publishStateIfDue();
         }
 
@@ -76,8 +76,8 @@ class RemoteControlGateway {
 
             _lastStateMillis = now;
             String state = _commandProcessor.buildStatePayload();
-            if (_bluetooth.isConnected()) {
-                _bluetooth.sendMessage(state);
+            if (_wifi.isConnected()) {
+                _wifi.sendMessage(state);
             }
         }
 
@@ -111,13 +111,13 @@ class RemoteControlGateway {
             }
         }
 
-        void handleBle() {
-            _bluetooth.poll();
+        void handleWifi() {
+            _wifi.poll();
 
             String command;
-            if (_bluetooth.readMessage(command)) {
+            if (_wifi.readMessage(command)) {
                 String response = _commandProcessor.processCommand(command);
-                _bluetooth.sendMessage(response);
+                _wifi.sendMessage(response);
             }
         }
 };

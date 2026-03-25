@@ -17,9 +17,13 @@
 #endif
 
 #if PINACOTECA_REMOTE_ENABLED
-#include "lib/bluetooth/ble_link.h"
-#include "lib/bluetooth/remote_gateway.h"
+#include "lib/wifi/wifi_link.h"
+#include "lib/wifi/remote_gateway.h"
 #endif
+
+#define PINACOTECA_WIFI_SSID ""
+#define PINACOTECA_WIFI_PASSWORD ""
+#define PINACOTECA_WIFI_PORT 7777
 
 // Setup PIN
 const int IS_HUMIDIFIER_LED = 11;
@@ -60,7 +64,7 @@ HumidifierControl galleryHumidifier(IS_HUMIDIFIER_LED, TARGET_HUMIDITY);
 DisplayPanel galleryDisplay(PIN_LCD_RS, PIN_LCD_EN, PIN_LCD_D4, PIN_LCD_D5, PIN_LCD_D6, PIN_LCD_D7, MAX_PEOPLE);
 
 #if PINACOTECA_REMOTE_ENABLED
-BleLink bluetoothConnection;
+WifiLink wifiConnection(PINACOTECA_WIFI_SSID, PINACOTECA_WIFI_PASSWORD, PINACOTECA_WIFI_PORT);
 RemoteControlGateway remoteGateway(
     &mainThermostat,
     &galleryHumidifier,
@@ -73,7 +77,7 @@ RemoteControlGateway remoteGateway(
     PIN_BLU_LIGHT,
     IS_HUMIDIFIER_LED,
     PIN_PLAFONIERE,
-    bluetoothConnection,
+    wifiConnection,
     1000
 );
 #endif
@@ -92,18 +96,18 @@ void setup() {
     galleryHumidifier.begin(); // Initialize humidity control
     galleryDisplay.begin(); // Initialize LCD display
 
-#if PINACOTECA_REMOTE_ENABLED
-    remoteGateway.begin();
-#endif
+    #if PINACOTECA_REMOTE_ENABLED
+        remoteGateway.begin();
+    #endif
 }
 
 void loop() {
 
-#if PINACOTECA_REMOTE_ENABLED
-    bool isManualBypass = remoteGateway.isManualBypassEnabled();
-#else
-    bool isManualBypass = false;
-#endif
+    #if PINACOTECA_REMOTE_ENABLED
+        bool isManualBypass = remoteGateway.isManualBypassEnabled();
+    #else
+        bool isManualBypass = false;
+    #endif
 
     if (!isManualBypass) {
         // Turnstile
@@ -130,9 +134,8 @@ void loop() {
     // LCD Display
     galleryDisplay.update(currentPeople, mainThermostat, galleryHumidifier, galleryLighting);
 
-    // Remote channel (Bluetooth LE)
-
-#if PINACOTECA_REMOTE_ENABLED
-    remoteGateway.update();
-#endif
+    // Remote channel (Wi-Fi)
+    #if PINACOTECA_REMOTE_ENABLED
+        remoteGateway.update();
+    #endif
 }

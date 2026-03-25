@@ -62,7 +62,7 @@ class MockServerIntegrationTests(unittest.TestCase):
 
     @classmethod
     def connect(cls, client="TEST"):
-        body = cls.http_get(f"/ble/connect?client={quote(client)}")
+        body = cls.http_get(f"/wifi/connect?client={quote(client)}")
         match = re.search(r"SID=([A-Z0-9]+)", body)
         if not match:
             raise AssertionError(f"Missing SID in response: {body}")
@@ -70,11 +70,11 @@ class MockServerIntegrationTests(unittest.TestCase):
 
     @classmethod
     def write(cls, sid, command):
-        return cls.http_get(f"/ble/write?sid={sid}&c={quote(command)}")
+        return cls.http_get(f"/wifi/write?sid={sid}&c={quote(command)}")
 
     @classmethod
     def read(cls, sid):
-        return cls.http_get(f"/ble/read?sid={sid}")
+        return cls.http_get(f"/wifi/read?sid={sid}")
 
     @classmethod
     def drain(cls, sid):
@@ -94,22 +94,21 @@ class MockServerIntegrationTests(unittest.TestCase):
                 return value
         raise AssertionError(f"Expected '{expected}' not found in queue for SID={sid}")
 
-    def test_ble_info_exposed(self):
-        payload = self.http_get("/ble/info")
+    def test_wifi_info_exposed(self):
+        payload = self.http_get("/wifi/info")
         info = json.loads(payload)
         self.assertEqual(info["protocol"], "text-line")
-        self.assertIn("service_uuid", info)
-        self.assertIn("rx_char_uuid", info)
-        self.assertIn("tx_char_uuid", info)
+        self.assertIn("ssid", info)
+        self.assertIn("tcp_port", info)
 
     def test_connect_read_disconnect(self):
         sid = self.connect("AI2")
         first = self.read(sid)
         second = self.read(sid)
-        self.assertEqual(first, "BLE:CONNECTED")
+        self.assertEqual(first, "WIFI:CONNECTED")
         self.assertTrue(second.startswith("STATE:"))
-        self.assertEqual(self.http_get(f"/ble/disconnect?sid={sid}"), "OK:DISCONNECTED")
-        self.assertEqual(self.http_get(f"/ble/read?sid={sid}"), "ERR:SESSION")
+        self.assertEqual(self.http_get(f"/wifi/disconnect?sid={sid}"), "OK:DISCONNECTED")
+        self.assertEqual(self.http_get(f"/wifi/read?sid={sid}"), "ERR:SESSION")
 
     def test_write_ping_roundtrip(self):
         sid = self.connect("PING")
@@ -117,7 +116,7 @@ class MockServerIntegrationTests(unittest.TestCase):
         self.assertEqual(self.write(sid, "PING"), "OK:WRITE")
         self.read_until(sid, "PONG")
         self.assertTrue(any(msg.startswith("STATE:") for msg in self.drain(sid)))
-        self.http_get(f"/ble/disconnect?sid={sid}")
+        self.http_get(f"/wifi/disconnect?sid={sid}")
 
     def test_mode_enforcement_on_actuators(self):
         sid = self.connect("MODE")
@@ -133,7 +132,7 @@ class MockServerIntegrationTests(unittest.TestCase):
         self.write(sid, "SERVO:OPEN")
         self.read_until(sid, "OK:SERVO:OPEN")
 
-        self.http_get(f"/ble/disconnect?sid={sid}")
+        self.http_get(f"/wifi/disconnect?sid={sid}")
 
     def test_set_commands_and_ranges(self):
         sid = self.connect("SET")
@@ -154,25 +153,25 @@ class MockServerIntegrationTests(unittest.TestCase):
         self.write(sid, "SET:PEOPLE:4")
         self.read_until(sid, "OK:PEOPLE")
 
-        state = self.http_get(f"/ble/state?sid={sid}")
+        state = self.http_get(f"/wifi/state?sid={sid}")
         self.assertIn("TT=22.5", state)
         self.assertIn("TL=350", state)
         self.assertIn("P=4", state)
 
-        self.http_get(f"/ble/disconnect?sid={sid}")
+        self.http_get(f"/wifi/disconnect?sid={sid}")
 
     def test_simulated_sensor_updates_and_state(self):
         sid = self.connect("SENSORS")
         self.drain(sid)
 
-        self.assertEqual(self.http_get("/ble/set_sensor?t=24.3&h=63.1&l=245&p=2"), "OK:SENSORS")
-        state = self.http_get(f"/ble/state?sid={sid}")
+        self.assertEqual(self.http_get("/wifi/set_sensor?t=24.3&h=63.1&l=245&p=2"), "OK:SENSORS")
+        state = self.http_get(f"/wifi/state?sid={sid}")
         self.assertIn("T=24.3", state)
         self.assertIn("H=63.1", state)
         self.assertIn("L=245", state)
         self.assertIn("P=2", state)
 
-        self.http_get(f"/ble/disconnect?sid={sid}")
+        self.http_get(f"/wifi/disconnect?sid={sid}")
 
     def test_actuators_endpoint_reflects_changes(self):
         sid = self.connect("ACT")
@@ -186,12 +185,12 @@ class MockServerIntegrationTests(unittest.TestCase):
         self.write(sid, "ACT:PLAFONIERE:PWM:128")
         self.read_until(sid, "OK:PLAFONIERE:PWM")
 
-        payload = self.http_get("/ble/actuators")
+        payload = self.http_get("/wifi/actuators")
         actuators = json.loads(payload)
         self.assertEqual(actuators["GREEN"], 1)
         self.assertEqual(actuators["PLAFONIERE_PWM"], 128)
 
-        self.http_get(f"/ble/disconnect?sid={sid}")
+        self.http_get(f"/wifi/disconnect?sid={sid}")
 
     def test_legacy_endpoints_still_available(self):
         self.assertEqual(self.http_get("/cmd?c=PING"), "PONG")

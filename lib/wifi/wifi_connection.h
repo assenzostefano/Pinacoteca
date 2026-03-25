@@ -1,11 +1,11 @@
-#ifndef BLUETOOTH_CONNECTION_H
-#define BLUETOOTH_CONNECTION_H
+#ifndef WIFI_CONNECTION_H
+#define WIFI_CONNECTION_H
 
 #include <Arduino.h>
 
-class BluetoothConnection {
+class WifiConnection {
     public:
-        virtual ~BluetoothConnection() {}
+        virtual ~WifiConnection() {}
 
         virtual bool begin() = 0;
         virtual bool isConnected() const = 0;

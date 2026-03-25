@@ -29,15 +29,14 @@ ACTUATORS = {
     "PLAFONIERE_PWM": 0,
 }
 
-BLE_INFO = {
+WIFI_INFO = {
     "device_name": "Pinacoteca-Mock",
-    "service_uuid": "12345678-1234-1234-1234-1234567890ab",
-    "rx_char_uuid": "12345678-1234-1234-1234-1234567890ac",
-    "tx_char_uuid": "12345678-1234-1234-1234-1234567890ad",
+    "ssid": "Pinacoteca-Mock-AP",
+    "tcp_port": 7777,
     "protocol": "text-line",
 }
 
-BLE_SESSIONS = {}
+WIFI_SESSIONS = {}
 
 STRICT_INT_RE = re.compile(r"^[+-]?\d+$")
 STRICT_FLOAT_RE = re.compile(r"^[+-]?(?:\d+\.\d+|\d+|\.\d+)$")
@@ -69,7 +68,7 @@ def parse_float(value):
 
 
 def enqueue_for_all_sessions(message):
-    for session in BLE_SESSIONS.values():
+    for session in WIFI_SESSIONS.values():
         session["tx_queue"].append(message)
 
 
@@ -79,20 +78,20 @@ def push_state_notification():
 
 def create_session(client_name):
     sid = uuid.uuid4().hex[:12].upper()
-    BLE_SESSIONS[sid] = {
+    WIFI_SESSIONS[sid] = {
         "client": client_name or "APPINVENTOR",
         "connected": True,
         "tx_queue": deque(),
     }
-    BLE_SESSIONS[sid]["tx_queue"].append("BLE:CONNECTED")
-    BLE_SESSIONS[sid]["tx_queue"].append(build_state())
+    WIFI_SESSIONS[sid]["tx_queue"].append("WIFI:CONNECTED")
+    WIFI_SESSIONS[sid]["tx_queue"].append(build_state())
     return sid
 
 
 def get_session(sid):
     if not sid:
         return None
-    return BLE_SESSIONS.get(sid)
+    return WIFI_SESSIONS.get(sid)
 
 
 def close_session(sid):
@@ -100,7 +99,7 @@ def close_session(sid):
     if not session:
         return False
     session["connected"] = False
-    del BLE_SESSIONS[sid]
+    del WIFI_SESSIONS[sid]
     return True
 
 
@@ -313,17 +312,17 @@ class Handler(BaseHTTPRequestHandler):
             self._reply("OK")
             return
 
-        if parsed.path == "/ble/info":
-            self._reply_json(BLE_INFO)
+        if parsed.path == "/wifi/info":
+            self._reply_json(WIFI_INFO)
             return
 
-        if parsed.path == "/ble/connect":
+        if parsed.path == "/wifi/connect":
             client = query.get("client", ["APPINVENTOR"])[0]
             sid = create_session(client)
             self._reply(f"OK:CONNECTED:SID={sid}")
             return
 
-        if parsed.path == "/ble/disconnect":
+        if parsed.path == "/wifi/disconnect":
             sid = query.get("sid", [""])[0].strip().upper()
             if close_session(sid):
                 self._reply("OK:DISCONNECTED")
@@ -331,7 +330,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._reply("ERR:SESSION")
             return
 
-        if parsed.path == "/ble/read":
+        if parsed.path == "/wifi/read":
             sid = query.get("sid", [""])[0].strip().upper()
             session = get_session(sid)
             if session is None:
@@ -343,7 +342,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._reply("NO_DATA")
             return
 
-        if parsed.path == "/ble/write":
+        if parsed.path == "/wifi/write":
             sid = query.get("sid", [""])[0].strip().upper()
             session = get_session(sid)
             if session is None:
@@ -357,7 +356,7 @@ class Handler(BaseHTTPRequestHandler):
             self._reply("OK:WRITE")
             return
 
-        if parsed.path == "/ble/state":
+        if parsed.path == "/wifi/state":
             sid = query.get("sid", [""])[0].strip().upper()
             session = get_session(sid)
             if session is None:
@@ -366,11 +365,11 @@ class Handler(BaseHTTPRequestHandler):
             self._reply(build_state())
             return
 
-        if parsed.path == "/ble/set_sensor":
+        if parsed.path == "/wifi/set_sensor":
             self._reply(set_simulated_sensor(query))
             return
 
-        if parsed.path == "/ble/actuators":
+        if parsed.path == "/wifi/actuators":
             self._reply_json(ACTUATORS)
             return
 
@@ -393,6 +392,6 @@ if __name__ == "__main__":
     port = int(os.getenv("MOCK_SERVER_PORT", "8080"))
     server = HTTPServer(("0.0.0.0", port), Handler)
     print(f"Mock Arduino server in ascolto su http://0.0.0.0:{port}")
-    print("Endpoint BLE virtuali: /ble/connect /ble/write /ble/read /ble/disconnect")
+    print("Endpoint Wi-Fi virtuali: /wifi/connect /wifi/write /wifi/read /wifi/disconnect")
     print("Compat legacy: /state e /cmd?c=<comando>")
     server.serve_forever()
