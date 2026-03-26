@@ -81,11 +81,9 @@ inline unsigned long pulseIn(int pin, int, unsigned long = 1000000UL) {
     return it == __mock_pulse_in.end() ? 0UL : it->second;
 }
 
-inline long constrain(long x, long a, long b) {
-    if (x < a) return a;
-    if (x > b) return b;
-    return x;
-}
+#ifndef constrain
+#define constrain(x, a, b) ((x) < (a) ? (a) : ((x) > (b) ? (b) : (x)))
+#endif
 
 class String {
 private:

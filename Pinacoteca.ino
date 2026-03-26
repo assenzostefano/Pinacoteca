@@ -1,3 +1,9 @@
+// Pinacoteca.ino
+// Main sketch for the Pinacoteca gallery management system.
+// Manages: turnstile entry, climate control (temperature + humidity),
+// gallery lighting, 16x2 LCD status display, and an optional
+// Wi-Fi remote-control gateway (Arduino UNO R4 WiFi only).
+
 #include <Servo.h>
 
 #include "lib/servomotor/turnstile.h"
@@ -21,24 +27,24 @@
 #include "lib/wifi/remote_gateway.h"
 #endif
 
-#define PINACOTECA_WIFI_SSID ""
+// --- Wi-Fi credentials ---
+#define PINACOTECA_WIFI_SSID     ""
 #define PINACOTECA_WIFI_PASSWORD ""
-#define PINACOTECA_WIFI_PORT 7777
+#define PINACOTECA_WIFI_PORT     7777
 
-// Setup PIN
-const int PIN_SERVOMOTOR = 3;
-const int PIN_GREEN_LIGHT = 4;
-const int PIN_RED_LIGHT = 5;
-const int PIN_IN_ULTRASONIC = 6;
-const int PIN_OUT_ULTRASONIC = 7;
-const int PIN_COOLING_RGB_BLUE = 8; // Cooling DIGITAL
-const int PIN_YELLOW_LIGHT = 9; // Heating
-const int PIN_PLAFONIERE = 10;
-const int IS_HUMIDIFIER_LED = 11;
-
+// --- Pin assignments ---
+const int PIN_SERVOMOTOR       = 3;
+const int PIN_GREEN_LIGHT      = 4;
+const int PIN_RED_LIGHT        = 5;
+const int PIN_IN_ULTRASONIC    = 6;
+const int PIN_OUT_ULTRASONIC   = 7;
+const int PIN_COOLING_RGB_BLUE = 8;   // Cooling (digital)
+const int PIN_YELLOW_LIGHT     = 9;   // Heating
+const int PIN_CEILING_LIGHTS   = 10;  // Gallery ceiling lights (PWM)
+const int PIN_HUMIDIFIER_LED   = 11;
 
 const int PIN_TEMPERATURE_SENSOR = A0;
-const int PIN_PHOTORESISTOR = A1;
+const int PIN_PHOTORESISTOR      = A1;
 
 const int PIN_LCD_RS = 12;
 const int PIN_LCD_EN = 13;
@@ -47,24 +53,34 @@ const int PIN_LCD_D5 = A3;
 const int PIN_LCD_D6 = A4;
 const int PIN_LCD_D7 = A5;
 
+// --- Global objects ---
 Servo myServo;
 
-const int MAX_PEOPLE = 5;
-const float TURNSTILE_MIN_DISTANCE_CM = 25.0;
-const float TARGET_TEMP_C = 20.0;
-const int TARGET_LUX = 200;
-const float TARGET_HUMIDITY = 65.0;
-const unsigned long THERMOSTAT_PAUSE_MS = 60000; // Impostato a 60s per il deploy reale
+const int           MAX_PEOPLE          = 5;
+const float         TURNSTILE_MIN_CM    = 25.0;
+const float         TARGET_TEMP_C       = 20.0;
+const int           TARGET_LUX          = 200;
+const float         TARGET_HUMIDITY     = 65.0;
+const unsigned long THERMOSTAT_PAUSE_MS = 60000; // 60 seconds for real deployment
 
-Turnstile entranceTurnstile(PIN_IN_ULTRASONIC, PIN_OUT_ULTRASONIC, MAX_PEOPLE, TURNSTILE_MIN_DISTANCE_CM);
-Stoplight trafficLight(PIN_GREEN_LIGHT, PIN_RED_LIGHT);
-Thermostat mainThermostat(PIN_TEMPERATURE_SENSOR, TARGET_TEMP_C, PIN_YELLOW_LIGHT, PIN_COOLING_RGB_BLUE, THERMOSTAT_PAUSE_MS);
-LightingControl galleryLighting(PIN_PHOTORESISTOR, PIN_PLAFONIERE, TARGET_LUX);
-HumidifierControl galleryHumidifier(IS_HUMIDIFIER_LED, TARGET_HUMIDITY);
-DisplayPanel galleryDisplay(PIN_LCD_RS, PIN_LCD_EN, PIN_LCD_D4, PIN_LCD_D5, PIN_LCD_D6, PIN_LCD_D7, MAX_PEOPLE);
+Turnstile         entranceTurnstile(PIN_IN_ULTRASONIC, PIN_OUT_ULTRASONIC,
+                                    MAX_PEOPLE, TURNSTILE_MIN_CM);
+Stoplight         trafficLight(PIN_GREEN_LIGHT, PIN_RED_LIGHT);
+Thermostat        mainThermostat(PIN_TEMPERATURE_SENSOR, TARGET_TEMP_C,
+                                 PIN_YELLOW_LIGHT, PIN_COOLING_RGB_BLUE,
+                                 THERMOSTAT_PAUSE_MS);
+LightingControl   galleryLighting(PIN_PHOTORESISTOR, PIN_CEILING_LIGHTS, TARGET_LUX);
+HumidifierControl galleryHumidifier(PIN_HUMIDIFIER_LED, TARGET_HUMIDITY);
+DisplayPanel      galleryDisplay(PIN_LCD_RS, PIN_LCD_EN,
+                                 PIN_LCD_D4, PIN_LCD_D5,
+                                 PIN_LCD_D6, PIN_LCD_D7, MAX_PEOPLE);
 
+// --- Remote channel ---
 #if PINACOTECA_REMOTE_ENABLED
-WifiLink wifiConnection(PINACOTECA_WIFI_SSID, PINACOTECA_WIFI_PASSWORD, PINACOTECA_WIFI_PORT);
+WifiLink wifiConnection(PINACOTECA_WIFI_SSID,
+                         PINACOTECA_WIFI_PASSWORD,
+                         PINACOTECA_WIFI_PORT);
+
 RemoteControlGateway remoteGateway(
     &mainThermostat,
     &galleryHumidifier,
@@ -75,88 +91,67 @@ RemoteControlGateway remoteGateway(
     PIN_RED_LIGHT,
     PIN_YELLOW_LIGHT,
     PIN_COOLING_RGB_BLUE,
-    IS_HUMIDIFIER_LED,
-    PIN_PLAFONIERE,
+    PIN_HUMIDIFIER_LED,
+    PIN_CEILING_LIGHTS,
     wifiConnection,
-    1000
-);
+    1000);
 
-bool isManualBypassEnabled() {
-    return remoteGateway.isManualBypassEnabled();
-}
+bool isManualBypassEnabled() { return remoteGateway.isManualBypassEnabled(); }
+void beginRemoteChannel()    { remoteGateway.begin(); }
+void updateRemoteChannel()   { remoteGateway.update(); }
 
-void beginRemoteChannel() {
-    remoteGateway.begin();
-}
-
-void updateRemoteChannel() {
-    remoteGateway.update();
-}
 #else
-bool isManualBypassEnabled() {
-    return false;
-}
 
-void beginRemoteChannel() {
-}
+bool isManualBypassEnabled() { return false; }
+void beginRemoteChannel()    {}
+void updateRemoteChannel()   {}
 
-void updateRemoteChannel() {
-}
 #endif
 
-void setup() {
-    Serial.begin(9600);
-    
-    // Initialize the servo motor
-    myServo.attach(PIN_SERVOMOTOR);
-    myServo.write(0);
-    entranceTurnstile.begin(&myServo);
-    
-    trafficLight.begin(); // Initialize the traffic light
-    mainThermostat.begin(); // Initialize the thermostat
-    galleryLighting.begin(); // Initialize lighting control
-    galleryHumidifier.begin(); // Initialize humidity control
-    galleryDisplay.begin(); // Initialize LCD display
+// --- Setup and Loop ---
 
-    beginRemoteChannel();
+void setup() {
+  Serial.begin(9600);
+
+  myServo.attach(PIN_SERVOMOTOR);
+  myServo.write(0);
+  entranceTurnstile.begin(&myServo);
+
+  trafficLight.begin();
+  mainThermostat.begin();
+  galleryLighting.begin();
+  galleryHumidifier.begin();
+  galleryDisplay.begin();
+
+  beginRemoteChannel();
 }
 
 void loop() {
+  bool manualBypass = isManualBypassEnabled();
 
-    bool isManualBypass = isManualBypassEnabled();
-
-    if (!isManualBypass) {
-        // Turnstile
-        entranceTurnstile.update();
-
-        // Current people count
-        int currentPeople = entranceTurnstile.getPeopleCount();
-
-        // Update traffic light based on current people count
-        trafficLight.update(currentPeople, 5);
-
-        // Thermostat
-        mainThermostat.update();
-
-        // Lighting (max 200 LUX)
-        galleryLighting.update();
-
-        // Humidity Control (target 65%)
-        galleryHumidifier.update();
-    }
+  if (!manualBypass) {
+    // Turnstile
+    entranceTurnstile.update();
 
     int currentPeople = entranceTurnstile.getPeopleCount();
+    trafficLight.update(currentPeople, MAX_PEOPLE);
 
-    // LCD Display
-    galleryDisplay.update(currentPeople, mainThermostat, galleryHumidifier, galleryLighting);
+    // Climate
+    mainThermostat.update();
 
-    // Remote channel (Wi-Fi)
-    updateRemoteChannel();
+    // Lighting
+    galleryLighting.update();
+
+    // Humidity
+    galleryHumidifier.update();
+  }
+
+  int currentPeople = entranceTurnstile.getPeopleCount();
+
+  // LCD display
+  galleryDisplay.update(currentPeople, mainThermostat,
+                        galleryHumidifier, galleryLighting);
+
+  // Remote channel (Wi-Fi)
+  updateRemoteChannel();
 }
-
-/* TODO LIST
-    [X] RGB LED for Cooling
-    [X] Sensor ultrasound
-    [] 2 arduino, 1 for Display (Arduino UNO)
-
-*/

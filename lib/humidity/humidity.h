@@ -1,31 +1,69 @@
+// humidity.h
+// DHT22 humidity sensor driver.
+// Wraps the DHT library with error reporting through the Pinacoteca ErrorRegistry.
+
 #ifndef HUMIDITY_H
 #define HUMIDITY_H
 
 #include <Arduino.h>
-#include <DHT.h> 
+#include <DHT.h>
 #include "../system/error_registry.h"
 
-#define DHTPIN 2 // PIN DHT Sensor
-#define DHTTYPE DHT22 // Model (Wokwi supports DHT22)
+// Default data pin and model for the DHT sensor
+#define PINACOTECA_DHT_PIN  2
+#define PINACOTECA_DHT_TYPE DHT22
 
-DHT dht_sensor(DHTPIN, DHTTYPE); 
+// Class that manages a DHT22 humidity sensor
+class HumiditySensor {
+  private:
+    mutable DHT _dht; // DHT object (mutable because read changes its internal state)
 
-// Initialize the DHT sensor
-void beginHumiditySensor() {
-    dht_sensor.begin();
-}
+  public:
+    // Constructor: pass the data pin and sensor type
+    HumiditySensor(uint8_t pin, uint8_t type) : _dht(pin, type) {}
 
-float readHumidity() {
-    float humidity_value = dht_sensor.readHumidity();
-    
-    if (isnan(humidity_value)) { // isnan (Is Not A Number) check if the reading is valid, if not it returns a specific error value
-        pinacotecaSetError(PIN_ERR_HUM_SENSOR);
-        return -999.0;
+    // Initialize the sensor
+    void begin() {
+      _dht.begin();
     }
 
-    pinacotecaClearError(PIN_ERR_HUM_SENSOR);
-    
-    return humidity_value;
+    // Read relative humidity in %
+    // Returns SENSOR_ERROR_VALUE if the sensor fails
+    float read() const {
+      float value = _dht.readHumidity();
+
+      if (isnan(value)) {
+        pinacotecaSetError(PIN_ERR_HUM_SENSOR);
+        return SENSOR_ERROR_VALUE;
+      }
+
+      pinacotecaClearError(PIN_ERR_HUM_SENSOR);
+      return value;
+    }
+
+    // Direct access to the underlying DHT object (used in tests)
+    DHT& dht() { return _dht; }
+};
+
+// --- Legacy compatibility ---
+
+// Global sensor instance
+inline HumiditySensor& _pinacotecaHumSensor() {
+  static HumiditySensor instance(PINACOTECA_DHT_PIN, PINACOTECA_DHT_TYPE);
+  return instance;
+}
+
+// Alias for the old "dht_sensor" global name
+#define dht_sensor (_pinacotecaHumSensor().dht())
+
+// Legacy initialization function
+inline void beginHumiditySensor() {
+  _pinacotecaHumSensor().begin();
+}
+
+// Legacy read function
+inline float readHumidity() {
+  return _pinacotecaHumSensor().read();
 }
 
 #endif // HUMIDITY_H

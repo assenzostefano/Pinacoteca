@@ -1,3 +1,8 @@
+// command_processor.h
+// Text-based command parser and executor.
+// Accepts SET/GET/ACT/SERVO commands via serial or Wi-Fi
+// and translates them into actions on the Pinacoteca subsystems.
+
 #ifndef COMMAND_PROCESSOR_H
 #define COMMAND_PROCESSOR_H
 
@@ -15,301 +20,194 @@
 #include "../led/led.h"
 
 class CommandProcessor {
-    private:
-        Thermostat* _thermostat;
-        HumidifierControl* _humidifier;
-        LightingControl* _lighting;
-        Turnstile* _turnstile;
-        Servo* _servo;
+  private:
+    Thermostat* _thermostat;
+    HumidifierControl* _humidifier;
+    LightingControl* _lighting;
+    Turnstile* _turnstile;
+    Servo* _servo;
 
-        int _greenPin;
-        int _redPin;
-        int _heatingPin;
-        int _coolingPin;
-        int _humidifierPin;
-        int _plafonierePin;
+    int _greenPin;
+    int _redPin;
+    int _heatingPin;
+    int _coolingPin;
+    int _humidifierPin;
+    int _ceilingLightsPin;
 
-        bool _manualBypass;
+    bool _manualBypass;
 
-        bool parseIntStrict(const String& raw, int& out) const {
-            const char* str = raw.c_str();
-            if (str == nullptr || str[0] == '\0') {
-                return false;
-            }
+    // Drive an LED only if manual mode is active
+    String manualLed(int pin, bool state, const char* okResponse) {
+      if (!_manualBypass) return "ERR:MODE";
+      led(pin, state);
+      return okResponse;
+    }
 
-            char* end = nullptr;
-            long value = strtol(str, &end, 10);
-            if (end == nullptr || *end != '\0') {
-                return false;
-            }
+    // Move the servo to an absolute angle
+    void moveServoAbsolute(int target) {
+      if (_servo == nullptr) return;
+      int delta = target - _servo->read();
+      antiSufferingServo(delta, *_servo);
+    }
 
-            if (value < INT_MIN || value > INT_MAX) {
-                return false;
-            }
+    // Strict integer parser (rejects trailing garbage)
+    static bool parseInt(const String& raw, int& out) {
+      const char* s = raw.c_str();
+      if (s == nullptr || s[0] == '\0') return false;
+      char* end = nullptr;
+      long v = strtol(s, &end, 10);
+      if (end == nullptr || *end != '\0') return false;
+      if (v < INT_MIN || v > INT_MAX) return false;
+      out = static_cast<int>(v);
+      return true;
+    }
 
-            out = static_cast<int>(value);
-            return true;
-        }
+    // Strict float parser (digits and optional decimal point only)
+    static bool parseFloat(const String& raw, float& out) {
+      const char* s = raw.c_str();
+      if (s == nullptr || s[0] == '\0') return false;
 
-        bool parseFloatStrict(const String& raw, float& out) const {
-            const char* str = raw.c_str();
-            if (str == nullptr || str[0] == '\0') {
-                return false;
-            }
+      size_t i = 0;
+      if (s[i] == '+' || s[i] == '-') i++;
 
-            size_t i = 0;
-            if (str[i] == '+' || str[i] == '-') {
-                i++;
-            }
+      bool hasDigit = false;
+      while (s[i] && isdigit(static_cast<unsigned char>(s[i]))) { hasDigit = true; i++; }
+      if (s[i] == '.') { i++; while (s[i] && isdigit(static_cast<unsigned char>(s[i]))) { hasDigit = true; i++; } }
+      if (!hasDigit || s[i] != '\0') return false;
 
-            bool hasDigit = false;
-            while (str[i] != '\0' && isdigit(static_cast<unsigned char>(str[i]))) {
-                hasDigit = true;
-                i++;
-            }
+      out = raw.toFloat();
+      return true;
+    }
 
-            if (str[i] == '.') {
-                i++;
-                while (str[i] != '\0' && isdigit(static_cast<unsigned char>(str[i]))) {
-                    hasDigit = true;
-                    i++;
-                }
-            }
+  public:
+    CommandProcessor(
+        Thermostat* thermostat,
+        HumidifierControl* humidifier,
+        LightingControl* lighting,
+        Turnstile* turnstile,
+        Servo* servo,
+        int greenPin, int redPin,
+        int heatingPin, int coolingPin,
+        int humidifierPin, int ceilingLightsPin)
+      : _thermostat(thermostat),
+        _humidifier(humidifier),
+        _lighting(lighting),
+        _turnstile(turnstile),
+        _servo(servo),
+        _greenPin(greenPin),
+        _redPin(redPin),
+        _heatingPin(heatingPin),
+        _coolingPin(coolingPin),
+        _humidifierPin(humidifierPin),
+        _ceilingLightsPin(ceilingLightsPin),
+        _manualBypass(false) {}
 
-            if (!hasDigit || str[i] != '\0') {
-                return false;
-            }
+    bool isManualBypassEnabled() const { return _manualBypass; }
 
-            out = raw.toFloat();
-            return true;
-        }
+    // Build the full state payload string
+    String buildStatePayload() const {
+      char t[12], h[12], l[12], tt[12], th[12];
 
-    public:
-        CommandProcessor(
-            Thermostat* thermostat,
-            HumidifierControl* humidifier,
-            LightingControl* lighting,
-            Turnstile* turnstile,
-            Servo* servo,
-            int greenPin,
-            int redPin,
-            int heatingPin,
-            int coolingPin,
-            int humidifierPin,
-            int plafonierePin
-        )
-            : _thermostat(thermostat),
-              _humidifier(humidifier),
-              _lighting(lighting),
-              _turnstile(turnstile),
-              _servo(servo),
-              _greenPin(greenPin),
-              _redPin(redPin),
-              _heatingPin(heatingPin),
-              _coolingPin(coolingPin),
-              _humidifierPin(humidifierPin),
-              _plafonierePin(plafonierePin),
-              _manualBypass(false) {}
+      dtostrf(_thermostat->getCurrentTemperature(), 0, 1, t);
+      dtostrf(_humidifier->getCurrentHumidity(), 0, 1, h);
+      dtostrf(_lighting->getCurrentLux(), 0, 0, l);
+      dtostrf(_thermostat->getTargetTemperature(), 0, 1, tt);
+      dtostrf(_humidifier->getTargetHumidity(), 0, 1, th);
 
-        bool isManualBypassEnabled() const {
-            return _manualBypass;
-        }
+      int servoAngle = (_servo != nullptr) ? _servo->read() : -1;
+      const char* mode = _manualBypass ? "MANUAL" : "AUTO";
 
-        String buildStatePayload() const {
-            char t[12];
-            char h[12];
-            char l[12];
-            char tt[12];
-            char th[12];
+      char payload[128];
+      snprintf(payload, sizeof(payload),
+               "STATE:T=%s;H=%s;L=%s;P=%d;S=%d;M=%s;TT=%s;TH=%s;TL=%d",
+               t, h, l,
+               _turnstile->getPeopleCount(),
+               servoAngle, mode, tt, th,
+               _lighting->getTargetLux());
 
-            dtostrf(_thermostat->getCurrentTemperature(), 0, 1, t);
-            dtostrf(_humidifier->getCurrentHumidity(), 0, 1, h);
-            dtostrf(_lighting->getCurrentLux(), 0, 0, l);
-            dtostrf(_thermostat->getTargetTemperature(), 0, 1, tt);
-            dtostrf(_humidifier->getTargetHumidity(), 0, 1, th);
+      return String(payload);
+    }
 
-            int servoAngle = (_servo != nullptr) ? _servo->read() : -1;
-            const char* mode = _manualBypass ? "MANUAL" : "AUTO";
+    // Process a text command and return the response
+    String processCommand(String command) {
+      command.trim();
+      command.toUpperCase();
 
-            char payload[128];
-            snprintf(
-                payload,
-                sizeof(payload),
-                "STATE:T=%s;H=%s;L=%s;P=%d;S=%d;M=%s;TT=%s;TH=%s;TL=%d",
-                t,
-                h,
-                l,
-                _turnstile->getPeopleCount(),
-                servoAngle,
-                mode,
-                tt,
-                th,
-                _lighting->getTargetLux()
-            );
+      if (command.length() == 0) return "ERR:EMPTY";
 
-            return String(payload);
-        }
+      // Informational commands
+      if (command == "PING")      return "PONG";
+      if (command == "VER")       return "VER:1";
+      if (command == "GET:STATE") return buildStatePayload();
+      if (command == "GET:MODE")  return _manualBypass ? "MODE:MANUAL" : "MODE:AUTO";
 
-        String processCommand(String command) {
-            command.trim();
-            command.toUpperCase();
+      // Mode switching
+      if (command == "MANUAL:ON")  { _manualBypass = true;  return "OK:MANUAL:ON"; }
+      if (command == "MANUAL:OFF") { _manualBypass = false; return "OK:MANUAL:OFF"; }
 
-            if (command.length() == 0) {
-                return "ERR:EMPTY";
-            }
+      // Setpoint commands
+      if (command.startsWith("SET:TEMP:")) {
+        float v; if (!parseFloat(command.substring(9), v)) return "ERR:FORMAT:TEMP";
+        if (v < 15.0 || v > 30.0) return "ERR:RANGE:TEMP";
+        _thermostat->setTargetTemperature(v); return "OK:TEMP";
+      }
+      if (command.startsWith("SET:HUM:")) {
+        float v; if (!parseFloat(command.substring(8), v)) return "ERR:FORMAT:HUM";
+        if (v < 40.0 || v > 80.0) return "ERR:RANGE:HUM";
+        _humidifier->setTargetHumidity(v); return "OK:HUM";
+      }
+      if (command.startsWith("SET:LUX:")) {
+        int v; if (!parseInt(command.substring(8), v)) return "ERR:FORMAT:LUX";
+        if (v < 50 || v > 1200) return "ERR:RANGE:LUX";
+        _lighting->setTargetLux(v); return "OK:LUX";
+      }
+      if (command.startsWith("SET:PEOPLE:")) {
+        int v; if (!parseInt(command.substring(11), v)) return "ERR:FORMAT:PEOPLE";
+        if (v < 0 || v > _turnstile->getMaxPeople()) return "ERR:RANGE:PEOPLE";
+        _turnstile->setPeopleCount(v); return "OK:PEOPLE";
+      }
 
-            if (command == "PING") return "PONG";
-            if (command == "VER") return "VER:1";
-            if (command == "GET:STATE") return buildStatePayload();
-            if (command == "GET:MODE") return _manualBypass ? "MODE:MANUAL" : "MODE:AUTO";
-            if (command == "MANUAL:ON") {
-                _manualBypass = true;
-                return "OK:MANUAL:ON";
-            }
-            if (command == "MANUAL:OFF") {
-                _manualBypass = false;
-                return "OK:MANUAL:OFF";
-            }
+      // Servo commands (manual mode only)
+      if (command == "SERVO:OPEN") {
+        if (!_manualBypass) return "ERR:MODE";
+        if (_servo == nullptr) return "ERR:SERVO";
+        moveServoAbsolute(90); return "OK:SERVO:OPEN";
+      }
+      if (command == "SERVO:CLOSE") {
+        if (!_manualBypass) return "ERR:MODE";
+        if (_servo == nullptr) return "ERR:SERVO";
+        moveServoAbsolute(0); return "OK:SERVO:CLOSE";
+      }
+      if (command.startsWith("SERVO:ANGLE:")) {
+        if (!_manualBypass) return "ERR:MODE";
+        if (_servo == nullptr) return "ERR:SERVO";
+        int a; if (!parseInt(command.substring(12), a)) return "ERR:FORMAT:SERVO";
+        if (a < 0 || a > 180) return "ERR:RANGE:SERVO";
+        moveServoAbsolute(a); return "OK:SERVO:ANGLE";
+      }
 
-            if (command.startsWith("SET:TEMP:")) {
-                float value = 0.0f;
-                if (!parseFloatStrict(command.substring(9), value)) return "ERR:FORMAT:TEMP";
-                if (value < 15.0f || value > 30.0f) return "ERR:RANGE:TEMP";
-                _thermostat->setTargetTemperature(value);
-                return "OK:TEMP";
-            }
+      // Actuator commands (manual mode only)
+      if (command == "ACT:GREEN:ON")       return manualLed(_greenPin, HIGH, "OK:GREEN:ON");
+      if (command == "ACT:GREEN:OFF")      return manualLed(_greenPin, LOW, "OK:GREEN:OFF");
+      if (command == "ACT:RED:ON")         return manualLed(_redPin, HIGH, "OK:RED:ON");
+      if (command == "ACT:RED:OFF")        return manualLed(_redPin, LOW, "OK:RED:OFF");
+      if (command == "ACT:HEAT:ON")        return manualLed(_heatingPin, HIGH, "OK:HEAT:ON");
+      if (command == "ACT:HEAT:OFF")       return manualLed(_heatingPin, LOW, "OK:HEAT:OFF");
+      if (command == "ACT:COOL:ON")        return manualLed(_coolingPin, HIGH, "OK:COOL:ON");
+      if (command == "ACT:COOL:OFF")       return manualLed(_coolingPin, LOW, "OK:COOL:OFF");
+      if (command == "ACT:HUMIDIFIER:ON")  return manualLed(_humidifierPin, HIGH, "OK:HUMIDIFIER:ON");
+      if (command == "ACT:HUMIDIFIER:OFF") return manualLed(_humidifierPin, LOW, "OK:HUMIDIFIER:OFF");
 
-            if (command.startsWith("SET:HUM:")) {
-                float value = 0.0f;
-                if (!parseFloatStrict(command.substring(8), value)) return "ERR:FORMAT:HUM";
-                if (value < 40.0f || value > 80.0f) return "ERR:RANGE:HUM";
-                _humidifier->setTargetHumidity(value);
-                return "OK:HUM";
-            }
+      if (command.startsWith("ACT:PLAFONIERE:PWM:")) {
+        if (!_manualBypass) return "ERR:MODE";
+        int p; if (!parseInt(command.substring(19), p)) return "ERR:FORMAT:PWM";
+        if (p < 0 || p > 255) return "ERR:RANGE:PWM";
+        ledDimming(_ceilingLightsPin, p);
+        return "OK:PLAFONIERE:PWM";
+      }
 
-            if (command.startsWith("SET:LUX:")) {
-                int value = 0;
-                if (!parseIntStrict(command.substring(8), value)) return "ERR:FORMAT:LUX";
-                if (value < 50 || value > 1200) return "ERR:RANGE:LUX";
-                _lighting->setTargetLux(value);
-                return "OK:LUX";
-            }
-
-            if (command.startsWith("SET:PEOPLE:")) {
-                int value = 0;
-                if (!parseIntStrict(command.substring(11), value)) return "ERR:FORMAT:PEOPLE";
-                if (value < 0 || value > _turnstile->getMaxPeople()) return "ERR:RANGE:PEOPLE";
-                _turnstile->setPeopleCount(value);
-                return "OK:PEOPLE";
-            }
-
-            if (command == "SERVO:OPEN") {
-                if (!_manualBypass) return "ERR:MODE";
-                if (_servo == nullptr) return "ERR:SERVO";
-                moveServoAbsolute(90);
-                return "OK:SERVO:OPEN";
-            }
-
-            if (command == "SERVO:CLOSE") {
-                if (!_manualBypass) return "ERR:MODE";
-                if (_servo == nullptr) return "ERR:SERVO";
-                moveServoAbsolute(0);
-                return "OK:SERVO:CLOSE";
-            }
-
-            if (command.startsWith("SERVO:ANGLE:")) {
-                if (!_manualBypass) return "ERR:MODE";
-                if (_servo == nullptr) return "ERR:SERVO";
-
-                int angle = 0;
-                if (!parseIntStrict(command.substring(12), angle)) return "ERR:FORMAT:SERVO";
-                if (angle < 0 || angle > 180) return "ERR:RANGE:SERVO";
-
-                moveServoAbsolute(angle);
-                return "OK:SERVO:ANGLE";
-            }
-
-            if (command == "ACT:GREEN:ON") {
-                if (!_manualBypass) return "ERR:MODE";
-                led(_greenPin, HIGH);
-                return "OK:GREEN:ON";
-            }
-
-            if (command == "ACT:GREEN:OFF") {
-                if (!_manualBypass) return "ERR:MODE";
-                led(_greenPin, LOW);
-                return "OK:GREEN:OFF";
-            }
-
-            if (command == "ACT:RED:ON") {
-                if (!_manualBypass) return "ERR:MODE";
-                led(_redPin, HIGH);
-                return "OK:RED:ON";
-            }
-
-            if (command == "ACT:RED:OFF") {
-                if (!_manualBypass) return "ERR:MODE";
-                led(_redPin, LOW);
-                return "OK:RED:OFF";
-            }
-
-            if (command == "ACT:HEAT:ON") {
-                if (!_manualBypass) return "ERR:MODE";
-                led(_heatingPin, HIGH);
-                return "OK:HEAT:ON";
-            }
-
-            if (command == "ACT:HEAT:OFF") {
-                if (!_manualBypass) return "ERR:MODE";
-                led(_heatingPin, LOW);
-                return "OK:HEAT:OFF";
-            }
-
-            if (command == "ACT:COOL:ON") {
-                if (!_manualBypass) return "ERR:MODE";
-                led(_coolingPin, HIGH);
-                return "OK:COOL:ON";
-            }
-
-            if (command == "ACT:COOL:OFF") {
-                if (!_manualBypass) return "ERR:MODE";
-                led(_coolingPin, LOW);
-                return "OK:COOL:OFF";
-            }
-
-            if (command == "ACT:HUMIDIFIER:ON") {
-                if (!_manualBypass) return "ERR:MODE";
-                led(_humidifierPin, HIGH);
-                return "OK:HUMIDIFIER:ON";
-            }
-
-            if (command == "ACT:HUMIDIFIER:OFF") {
-                if (!_manualBypass) return "ERR:MODE";
-                led(_humidifierPin, LOW);
-                return "OK:HUMIDIFIER:OFF";
-            }
-
-            if (command.startsWith("ACT:PLAFONIERE:PWM:")) {
-                if (!_manualBypass) return "ERR:MODE";
-
-                int pwm = 0;
-                if (!parseIntStrict(command.substring(19), pwm)) return "ERR:FORMAT:PWM";
-                if (pwm < 0 || pwm > 255) return "ERR:RANGE:PWM";
-
-                ledDimming(_plafonierePin, pwm);
-                return "OK:PLAFONIERE:PWM";
-            }
-
-            return "ERR:UNKNOWN";
-        }
-
-    private:
-        void moveServoAbsolute(int targetAngle) {
-            if (_servo == nullptr) return;
-
-            int delta = targetAngle - _servo->read();
-            antiSufferingServo(delta, *_servo);
-        }
+      return "ERR:UNKNOWN";
+    }
 };
 
-#endif
+#endif // COMMAND_PROCESSOR_H
