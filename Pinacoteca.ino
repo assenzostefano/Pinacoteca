@@ -80,6 +80,28 @@ RemoteControlGateway remoteGateway(
     wifiConnection,
     1000
 );
+
+bool isManualBypassEnabled() {
+    return remoteGateway.isManualBypassEnabled();
+}
+
+void beginRemoteChannel() {
+    remoteGateway.begin();
+}
+
+void updateRemoteChannel() {
+    remoteGateway.update();
+}
+#else
+bool isManualBypassEnabled() {
+    return false;
+}
+
+void beginRemoteChannel() {
+}
+
+void updateRemoteChannel() {
+}
 #endif
 
 void setup() {
@@ -96,18 +118,12 @@ void setup() {
     galleryHumidifier.begin(); // Initialize humidity control
     galleryDisplay.begin(); // Initialize LCD display
 
-    #if PINACOTECA_REMOTE_ENABLED
-        remoteGateway.begin();
-    #endif
+    beginRemoteChannel();
 }
 
 void loop() {
 
-    #if PINACOTECA_REMOTE_ENABLED
-        bool isManualBypass = remoteGateway.isManualBypassEnabled();
-    #else
-        bool isManualBypass = false;
-    #endif
+    bool isManualBypass = isManualBypassEnabled();
 
     if (!isManualBypass) {
         // Turnstile
@@ -135,9 +151,7 @@ void loop() {
     galleryDisplay.update(currentPeople, mainThermostat, galleryHumidifier, galleryLighting);
 
     // Remote channel (Wi-Fi)
-    #if PINACOTECA_REMOTE_ENABLED
-        remoteGateway.update();
-    #endif
+    updateRemoteChannel();
 }
 
 /* TODO LIST

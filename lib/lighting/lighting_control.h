@@ -34,20 +34,7 @@ class LightingControl {
 
             pinacotecaClearError(PIN_ERR_LIGHT_SENSOR);
             float missingLight = _targetLux - currentLux;
-            
-            int pwm_value = 0;
-            
-            if (missingLight > 0) {
-#if defined(ARDUINO_ARCH_AVR)
-                pwm_value = 255;
-#else
-                float deficitRatio = missingLight / _targetLux;
-                deficitRatio = constrain(deficitRatio, 0.0f, 1.0f);
-                pwm_value = static_cast<int>(deficitRatio * 255.0f);
-#endif
-            } else {
-                pwm_value = 0;
-            }
+            int pwm_value = computePwmFromMissingLight(missingLight);
             
             if (!ledDimming(_dimmerPin, pwm_value)) {
                 pinacotecaSetError(PIN_ERR_LIGHT_ACTUATOR);
@@ -69,6 +56,21 @@ class LightingControl {
 
         float getCurrentLux() const {
             return readLux(_sensorPin);
+        }
+
+    private:
+        int computePwmFromMissingLight(float missingLight) const {
+            if (missingLight <= 0) {
+                return 0;
+            }
+
+#if defined(ARDUINO_ARCH_AVR)
+            return 255;
+#else
+            float deficitRatio = missingLight / _targetLux;
+            deficitRatio = constrain(deficitRatio, 0.0f, 1.0f);
+            return static_cast<int>(deficitRatio * 255.0f);
+#endif
         }
 };
 
