@@ -68,7 +68,7 @@ class Thermostat {
                         return false;
                      }
                 } else if (_currentState == 2) { // Cooling
-                     if (!led(_heatingPin, LOW) || !led(_coolingPin, HIGH)) {
+                     if (!led(_heatingPin, LOW) || !ledRGB(_coolingPin, "BLUE")) {
                         pinacotecaSetError(PIN_ERR_THERMOSTAT_ACTUATOR);
                         return false;
                      }

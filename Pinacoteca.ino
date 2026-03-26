@@ -26,17 +26,16 @@
 #define PINACOTECA_WIFI_PORT 7777
 
 // Setup PIN
-const int IS_HUMIDIFIER_LED = 11;
 const int PIN_SERVOMOTOR = 3;
 const int PIN_GREEN_LIGHT = 4;
 const int PIN_RED_LIGHT = 5;
-const int PIN_IN_BUTTON = 6;
-const int PIN_OUT_BUTTON = 7;
-
-const int PIN_BLU_LIGHT = 8; // Cooling
+const int PIN_IN_ULTRASONIC = 6;
+const int PIN_OUT_ULTRASONIC = 7;
+const int PIN_COOLING_RGB_BLUE = 8; // Cooling DIGITAL
 const int PIN_YELLOW_LIGHT = 9; // Heating
-
 const int PIN_PLAFONIERE = 10;
+const int IS_HUMIDIFIER_LED = 11;
+
 
 const int PIN_TEMPERATURE_SENSOR = A0;
 const int PIN_PHOTORESISTOR = A1;
@@ -51,14 +50,15 @@ const int PIN_LCD_D7 = A5;
 Servo myServo;
 
 const int MAX_PEOPLE = 5;
+const float TURNSTILE_MIN_DISTANCE_CM = 25.0;
 const float TARGET_TEMP_C = 20.0;
 const int TARGET_LUX = 200;
 const float TARGET_HUMIDITY = 65.0;
 const unsigned long THERMOSTAT_PAUSE_MS = 60000; // Impostato a 60s per il deploy reale
 
-Turnstile entranceTurnstile(PIN_IN_BUTTON, PIN_OUT_BUTTON, MAX_PEOPLE);
+Turnstile entranceTurnstile(PIN_IN_ULTRASONIC, PIN_OUT_ULTRASONIC, MAX_PEOPLE, TURNSTILE_MIN_DISTANCE_CM);
 Stoplight trafficLight(PIN_GREEN_LIGHT, PIN_RED_LIGHT);
-Thermostat mainThermostat(PIN_TEMPERATURE_SENSOR, TARGET_TEMP_C, PIN_YELLOW_LIGHT, PIN_BLU_LIGHT, THERMOSTAT_PAUSE_MS);
+Thermostat mainThermostat(PIN_TEMPERATURE_SENSOR, TARGET_TEMP_C, PIN_YELLOW_LIGHT, PIN_COOLING_RGB_BLUE, THERMOSTAT_PAUSE_MS);
 LightingControl galleryLighting(PIN_PHOTORESISTOR, PIN_PLAFONIERE, TARGET_LUX);
 HumidifierControl galleryHumidifier(IS_HUMIDIFIER_LED, TARGET_HUMIDITY);
 DisplayPanel galleryDisplay(PIN_LCD_RS, PIN_LCD_EN, PIN_LCD_D4, PIN_LCD_D5, PIN_LCD_D6, PIN_LCD_D7, MAX_PEOPLE);
@@ -74,7 +74,7 @@ RemoteControlGateway remoteGateway(
     PIN_GREEN_LIGHT,
     PIN_RED_LIGHT,
     PIN_YELLOW_LIGHT,
-    PIN_BLU_LIGHT,
+    PIN_COOLING_RGB_BLUE,
     IS_HUMIDIFIER_LED,
     PIN_PLAFONIERE,
     wifiConnection,
@@ -139,3 +139,10 @@ void loop() {
         remoteGateway.update();
     #endif
 }
+
+/* TODO LIST
+    [X] RGB LED for Cooling
+    [X] Sensor ultrasound
+    [] 2 arduino, 1 for Display (Arduino UNO)
+
+*/

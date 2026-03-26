@@ -50,6 +50,7 @@ inline std::unordered_map<int, int> __mock_digital_read;
 inline std::unordered_map<int, int> __mock_digital_write;
 inline std::unordered_map<int, int> __mock_analog_read;
 inline std::unordered_map<int, int> __mock_analog_write;
+inline std::unordered_map<int, unsigned long> __mock_pulse_in;
 
 inline void resetArduinoMocks() {
     __mock_millis = 0;
@@ -58,6 +59,7 @@ inline void resetArduinoMocks() {
     __mock_digital_write.clear();
     __mock_analog_read.clear();
     __mock_analog_write.clear();
+    __mock_pulse_in.clear();
 }
 
 inline void pinMode(int pin, int mode) { __mock_pin_mode[pin] = mode; }
@@ -73,6 +75,11 @@ inline int analogRead(int pin) {
 inline void analogWrite(int pin, int value) { __mock_analog_write[pin] = value; }
 inline unsigned long millis() { return __mock_millis; }
 inline void delay(unsigned long ms) { __mock_millis += ms; }
+inline void delayMicroseconds(unsigned int) {}
+inline unsigned long pulseIn(int pin, int, unsigned long = 1000000UL) {
+    auto it = __mock_pulse_in.find(pin);
+    return it == __mock_pulse_in.end() ? 0UL : it->second;
+}
 
 inline long constrain(long x, long a, long b) {
     if (x < a) return a;

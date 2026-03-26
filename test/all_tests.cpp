@@ -118,17 +118,16 @@ TEST_F(BaseTest, TurnstileIncrementsAndDecrementsPeople) {
     s.write(0);
     t.begin(&s);
 
-    __mock_digital_read[6] = HIGH;
-    __mock_digital_read[7] = LOW;
+    __mock_pulse_in[6] = 1000; // ~17cm -> person detected IN
+    __mock_pulse_in[7] = 0;
     t.update();
     EXPECT_EQ(t.getPeopleCount(), 1);
 
-    __mock_digital_read[6] = LOW;
+    __mock_pulse_in[6] = 0;
     __mock_millis += 800;
     t.update(); // close gate
 
-    __mock_digital_read[6] = LOW;
-    __mock_digital_read[7] = HIGH;
+    __mock_pulse_in[7] = 1000; // ~17cm -> person detected OUT
     t.update();
     EXPECT_EQ(t.getPeopleCount(), 0);
 }
@@ -140,7 +139,8 @@ TEST_F(BaseTest, TurnstileRespectsMaxPeople) {
     s.write(0);
     t.begin(&s);
 
-    __mock_digital_read[6] = HIGH;
+    __mock_pulse_in[6] = 1000;
+    __mock_pulse_in[7] = 0;
     t.update();
     t.update();
     EXPECT_EQ(t.getPeopleCount(), 1);
@@ -212,7 +212,7 @@ TEST_F(BaseTest, ThermostatCoolingBranch) {
     EXPECT_TRUE(th.update());
     EXPECT_TRUE(th.update());
     EXPECT_EQ(__mock_digital_write[9], LOW);
-    EXPECT_EQ(__mock_digital_write[8], HIGH);
+    EXPECT_EQ(__mock_analog_write[8], 255);
 }
 
 TEST_F(BaseTest, HumidityReadAndError) {
