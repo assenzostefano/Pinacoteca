@@ -257,11 +257,13 @@
       }
     },
     {
-      "type": "wokwi-lcd1602",
-      "id": "lcd1",
-      "top": -330,
-      "left": -40,
-      "attrs": {}
+      "type": "wokwi-ssd1306",
+      "id": "oled1",
+      "top": -80,
+      "left": 120,
+      "attrs": {
+        "i2cAddress": "0x3c"
+      }
     }
   ],
   "connections": [
@@ -572,75 +574,27 @@
       []
     ],
     [
-      "lcd1:VSS",
+      "oled1:GND",
       "uno:GND.1",
       "black",
       []
     ],
     [
-      "lcd1:VDD",
+      "oled1:VCC",
       "uno:5V",
       "red",
       []
     ],
     [
-      "lcd1:VO",
-      "uno:GND.1",
-      "black",
-      []
-    ],
-    [
-      "lcd1:RW",
-      "uno:GND.1",
-      "black",
-      []
-    ],
-    [
-      "lcd1:RS",
-      "uno:12",
-      "green",
-      []
-    ],
-    [
-      "lcd1:E",
-      "uno:13",
+      "oled1:SCL",
+      "uno:A5",
       "blue",
       []
     ],
     [
-      "lcd1:D4",
-      "uno:A2",
-      "yellow",
-      []
-    ],
-    [
-      "lcd1:D5",
-      "uno:A3",
-      "yellow",
-      []
-    ],
-    [
-      "lcd1:D6",
+      "oled1:SDA",
       "uno:A4",
-      "yellow",
-      []
-    ],
-    [
-      "lcd1:D7",
-      "uno:A5",
-      "yellow",
-      []
-    ],
-    [
-      "lcd1:A",
-      "uno:5V",
-      "red",
-      []
-    ],
-    [
-      "lcd1:K",
-      "uno:GND.1",
-      "black",
+      "green",
       []
     ]
   ],

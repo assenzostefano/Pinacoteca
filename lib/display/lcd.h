@@ -19,8 +19,12 @@ class DisplayPanel {
     DisplayInterface _display;
     unsigned long _lastRefresh;
     unsigned long _lastPageChange;
+    unsigned long _logoUntil;
     byte _page;
     int _maxPeople;
+  // Default 32x32 placeholder logo (replace with company bitmap).
+  static const uint8_t DEFAULT_LOGO_32x32[128];
+
 
     // Compile-time clock seed
     int _baseYear;
@@ -114,12 +118,24 @@ class DisplayPanel {
       getCurrentDateTime(yr, mo, dy, hr, mn, sc);
       byte wd = weekdayIndex(yr, mo, dy);
 
+#if defined(ARDUINO)
+      char line1[22], line2[22], line3[22];
+      snprintf(line1, sizeof(line1), "PINACOTECA");
+      snprintf(line2, sizeof(line2), "%s %02d/%02d/%04d", weekdayName(wd), dy, mo, yr);
+      snprintf(line3, sizeof(line3), "%02d:%02d:%02d", hr, mn, sc);
+
+      _display.setTextSize(1);
+      _display.setCursor(0, 0);  _display.print(line1);
+      _display.setCursor(0, 18); _display.print(line2);
+      _display.setCursor(0, 34); _display.print(line3);
+#else
       char line1[17], line2[17];
       snprintf(line1, sizeof(line1), "%s %02d/%02d/%04d", weekdayName(wd), dy, mo, yr);
       snprintf(line2, sizeof(line2), "Hour %02d:%02d:%02d", hr, mn, sc);
 
       _display.setCursor(0, 0); _display.print(line1);
       _display.setCursor(0, 1); _display.print(line2);
+#endif
     }
 
     void printStatusPage(int people, float temp, float tgtTemp,
@@ -138,12 +154,26 @@ class DisplayPanel {
       else if (temp < (tgtTemp - tol))     mode = "HEAT";
       else if (temp > (tgtTemp + tol))     mode = "COOL";
 
+    #if defined(ARDUINO)
+      char line1[22], line2[22], line3[22], line4[22];
+      snprintf(line1, sizeof(line1), "T:%sC (%s)", tempStr, mode);
+      snprintf(line2, sizeof(line2), "H:%s%%", humStr);
+      snprintf(line3, sizeof(line3), "P:%d/%d", people, _maxPeople);
+      snprintf(line4, sizeof(line4), "L:%d/%d", (int)(lux + 0.5f), tgtLux);
+
+      _display.setTextSize(1);
+      _display.setCursor(0, 0);  _display.print(line1);
+      _display.setCursor(0, 16); _display.print(line2);
+      _display.setCursor(0, 32); _display.print(line3);
+      _display.setCursor(0, 48); _display.print(line4);
+    #else
       char line1[17], line2[17];
       snprintf(line1, sizeof(line1), "T:%sC H:%s%%", tempStr, humStr);
       snprintf(line2, sizeof(line2), "C:%s TR:%d/%d", mode, people, _maxPeople);
 
       _display.setCursor(0, 0); _display.print(line1);
       _display.setCursor(0, 1); _display.print(line2);
+    #endif
     }
 
     bool hasSensorError(float temp, float hum, float lux) {
@@ -154,6 +184,17 @@ class DisplayPanel {
     }
 
     void printErrorPage(float temp, float hum, float lux) {
+#if defined(ARDUINO)
+      char line2[22] = "No sensor errors";
+      if      (temp <= SENSOR_ERROR_VALUE) snprintf(line2, sizeof(line2), "Temp sensor FAIL");
+      else if (hum  <= SENSOR_ERROR_VALUE) snprintf(line2, sizeof(line2), "Hum sensor FAIL");
+      else if (lux  <= SENSOR_ERROR_VALUE) snprintf(line2, sizeof(line2), "Light sensor FAIL");
+      else if (pinacotecaHasAnyError())    snprintf(line2, sizeof(line2), "%s", pinacotecaFirstErrorText());
+
+      _display.setTextSize(1);
+      _display.setCursor(0, 0);  _display.print("ERROR");
+      _display.setCursor(0, 18); _display.print(line2);
+#else
       char line2[17] = "No sensor errors";
       if      (temp <= SENSOR_ERROR_VALUE) snprintf(line2, sizeof(line2), "Temp sensor FAIL");
       else if (hum  <= SENSOR_ERROR_VALUE) snprintf(line2, sizeof(line2), "Hum sensor FAIL");
@@ -162,10 +203,23 @@ class DisplayPanel {
 
       _display.setCursor(0, 0); _display.print("ERROR");
       _display.setCursor(0, 1); _display.print(line2);
+#endif
     }
 
     void printFaultPage(int people, float temp, float tgtTemp,
                         float hum, float tgtHum) {
+#if defined(ARDUINO)
+      char line2[22] = "No faults";
+      if      (temp > (tgtTemp + 1.0))            snprintf(line2, sizeof(line2), "Temperature HIGH");
+      else if (temp < (tgtTemp - 1.0))            snprintf(line2, sizeof(line2), "Temperature LOW");
+      else if (hum > (tgtHum + 2.0))              snprintf(line2, sizeof(line2), "Humidity HIGH");
+      else if (hum < (tgtHum - 2.0))              snprintf(line2, sizeof(line2), "Humidity LOW");
+      else if (people < 0 || people > _maxPeople) snprintf(line2, sizeof(line2), "Turnstile FAULT");
+
+      _display.setTextSize(1);
+      _display.setCursor(0, 0);  _display.print("FAULT");
+      _display.setCursor(0, 18); _display.print(line2);
+#else
       char line2[17] = "No faults";
       if      (temp > (tgtTemp + 1.0))           snprintf(line2, sizeof(line2), "Temperature HIGH");
       else if (temp < (tgtTemp - 1.0))           snprintf(line2, sizeof(line2), "Temperature LOW");
@@ -175,12 +229,28 @@ class DisplayPanel {
 
       _display.setCursor(0, 0); _display.print("FAULT");
       _display.setCursor(0, 1); _display.print(line2);
+#endif
     }
 
   public:
+    DisplayPanel(int maxPeople)
+#if defined(ARDUINO)
+      : _display(),
+#else
+      : _display(12, 13, A2, A3, A4, A5),
+#endif
+        _lastRefresh(0), _lastPageChange(0), _logoUntil(0), _page(0), _maxPeople(maxPeople) {
+      _baseYear   = atoi(__DATE__ + 7);
+      _baseMonth  = monthFromString(__DATE__);
+      _baseDay    = (byte)atoi(__DATE__ + 4);
+      _baseHour   = (byte)atoi(__TIME__);
+      _baseMinute = (byte)atoi(__TIME__ + 3);
+      _baseSecond = (byte)atoi(__TIME__ + 6);
+    }
+
     DisplayPanel(int rs, int en, int d4, int d5, int d6, int d7, int maxPeople)
       : _display(rs, en, d4, d5, d6, d7),
-        _lastRefresh(0), _lastPageChange(0), _page(0), _maxPeople(maxPeople) {
+        _lastRefresh(0), _lastPageChange(0), _logoUntil(0), _page(0), _maxPeople(maxPeople) {
       _baseYear   = atoi(__DATE__ + 7);
       _baseMonth  = monthFromString(__DATE__);
       _baseDay    = (byte)atoi(__DATE__ + 4);
@@ -190,6 +260,24 @@ class DisplayPanel {
     }
 
     void begin() {
+#if defined(ARDUINO)
+      if (!_display.begin()) {
+        Serial.println("ERR: OLED init failed (check I2C wiring/address)");
+        return;
+      }
+      Serial.println("OK: OLED initialized");
+      Serial.print("OLED I2C addr: 0x");
+      Serial.println(_display.address(), HEX);
+
+      _display.clear();
+      _display.drawBitmap(48, 8, DEFAULT_LOGO_32x32, 32, 32);
+      _display.setTextSize(1);
+      _display.setCursor(8, 48);
+      _display.print("Pinacoteca");
+      _display.display();
+
+      _logoUntil = millis() + 2500;
+#else
       _display.begin(16, 2);
       _display.clear();
       _display.setCursor(0, 0);
@@ -198,12 +286,19 @@ class DisplayPanel {
       _display.print("Display started");
       delay(800);
       _display.clear();
+#endif
     }
 
     // Update the display (called every loop iteration)
     void update(int currentPeople, Thermostat& thermostat,
                 HumidifierControl& humidifier, LightingControl& lighting) {
       unsigned long now = millis();
+
+#if defined(ARDUINO)
+      if (_logoUntil != 0 && now < _logoUntil) {
+        return;
+      }
+#endif
 
       if (now - _lastRefresh < 1000) return;
       _lastRefresh = now;
@@ -235,11 +330,23 @@ class DisplayPanel {
         printDateTimePage();
       }
 
+      _display.display();
+
       if (now - _lastPageChange >= 5000) {
         _page = (_page + 1) % pageCount;
         _lastPageChange = now;
       }
     }
+};
+
+const uint8_t DisplayPanel::DEFAULT_LOGO_32x32[128] = {
+  0x00,0x00,0x00,0x00,0x07,0xFF,0xFF,0xE0,0x08,0x00,0x00,0x10,0x10,0x00,0x00,0x08,
+  0x20,0x1F,0xF8,0x04,0x40,0x70,0x0E,0x02,0x40,0xC0,0x03,0x02,0x81,0x83,0xC1,0x01,
+  0x81,0x06,0x60,0x81,0x81,0x0C,0x30,0x81,0x81,0x18,0x18,0x81,0x81,0x30,0x0C,0x81,
+  0x81,0x60,0x06,0x81,0x81,0x60,0x06,0x81,0x81,0x30,0x0C,0x81,0x81,0x18,0x18,0x81,
+  0x81,0x0C,0x30,0x81,0x81,0x06,0x60,0x81,0x81,0x83,0xC1,0x01,0x40,0xC0,0x03,0x02,
+  0x40,0x70,0x0E,0x02,0x20,0x1F,0xF8,0x04,0x10,0x00,0x00,0x08,0x08,0x00,0x00,0x10,
+  0x07,0xFF,0xFF,0xE0,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 };
 
 #endif // LCD_H

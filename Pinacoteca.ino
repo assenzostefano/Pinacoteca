@@ -1,7 +1,7 @@
 // Pinacoteca.ino
 // Main sketch for the Pinacoteca gallery management system.
 // Manages: turnstile entry, climate control (temperature + humidity),
-// gallery lighting, 16x2 LCD status display, and an optional
+// gallery lighting, small OLED status display, and an optional
 // Wi-Fi remote-control gateway (Arduino UNO R4 WiFi only).
 
 #include <Servo.h>
@@ -46,12 +46,9 @@ const int PIN_HUMIDIFIER_LED   = 11;
 const int PIN_TEMPERATURE_SENSOR = A0;
 const int PIN_PHOTORESISTOR      = A1;
 
-const int PIN_LCD_RS = 12;
-const int PIN_LCD_EN = 13;
-const int PIN_LCD_D4 = A2;
-const int PIN_LCD_D5 = A3;
-const int PIN_LCD_D6 = A4;
-const int PIN_LCD_D7 = A5;
+// OLED SSD1306 (I2C)
+const int PIN_OLED_SDA = SDA;
+const int PIN_OLED_SCL = SCL;
 
 // --- Global objects ---
 Servo myServo;
@@ -71,9 +68,7 @@ Thermostat        mainThermostat(PIN_TEMPERATURE_SENSOR, TARGET_TEMP_C,
                                  THERMOSTAT_PAUSE_MS);
 LightingControl   galleryLighting(PIN_PHOTORESISTOR, PIN_CEILING_LIGHTS, TARGET_LUX);
 HumidifierControl galleryHumidifier(PIN_HUMIDIFIER_LED, TARGET_HUMIDITY);
-DisplayPanel      galleryDisplay(PIN_LCD_RS, PIN_LCD_EN,
-                                 PIN_LCD_D4, PIN_LCD_D5,
-                                 PIN_LCD_D6, PIN_LCD_D7, MAX_PEOPLE);
+DisplayPanel      galleryDisplay(MAX_PEOPLE);
 
 // --- Remote channel ---
 #if PINACOTECA_REMOTE_ENABLED
@@ -113,6 +108,11 @@ void updateRemoteChannel()   {}
 void setup() {
   Serial.begin(9600);
 
+  Serial.print("OLED SDA pin: ");
+  Serial.println(PIN_OLED_SDA);
+  Serial.print("OLED SCL pin: ");
+  Serial.println(PIN_OLED_SCL);
+
   myServo.attach(PIN_SERVOMOTOR);
   myServo.write(0);
   entranceTurnstile.begin(&myServo);
@@ -148,7 +148,7 @@ void loop() {
 
   int currentPeople = entranceTurnstile.getPeopleCount();
 
-  // LCD display
+  // OLED display
   galleryDisplay.update(currentPeople, mainThermostat,
                         galleryHumidifier, galleryLighting);
 
