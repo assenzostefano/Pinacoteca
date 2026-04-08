@@ -1,6 +1,6 @@
 // command_processor.h
 // Text-based command parser and executor.
-// Accepts SET/GET/ACT/SERVO commands via serial or Wi-Fi
+// Accepts SET/GET/ACT/SERVO commands via serial or Bluetooth
 // and translates them into actions on the Pinacoteca subsystems.
 
 #ifndef COMMAND_PROCESSOR_H
@@ -36,21 +36,21 @@ class CommandProcessor {
 
     bool _manualBypass;
 
-    // Drive an LED only if manual mode is active
+    // Drive an LED only if manual mode is active.
     String manualLed(int pin, bool state, const char* okResponse) {
       if (!_manualBypass) return "ERR:MODE";
       led(pin, state);
       return okResponse;
     }
 
-    // Move the servo to an absolute angle
+    // Move the servo to an absolute angle.
     void moveServoAbsolute(int target) {
       if (_servo == nullptr) return;
       int delta = target - _servo->read();
       antiSufferingServo(delta, *_servo);
     }
 
-    // Strict integer parser (rejects trailing garbage)
+    // Strict integer parser (rejects trailing garbage).
     static bool parseInt(const String& raw, int& out) {
       const char* s = raw.c_str();
       if (s == nullptr || s[0] == '\0') return false;
@@ -62,7 +62,7 @@ class CommandProcessor {
       return true;
     }
 
-    // Strict float parser (digits and optional decimal point only)
+    // Strict float parser (digits and optional decimal point only).
     static bool parseFloat(const String& raw, float& out) {
       const char* s = raw.c_str();
       if (s == nullptr || s[0] == '\0') return false;
@@ -104,7 +104,7 @@ class CommandProcessor {
 
     bool isManualBypassEnabled() const { return _manualBypass; }
 
-    // Build the full state payload string
+    // Build the full state payload string.
     String buildStatePayload() const {
       char t[12], h[12], l[12], tt[12], th[12];
 
@@ -128,24 +128,24 @@ class CommandProcessor {
       return String(payload);
     }
 
-    // Process a text command and return the response
+    // Process a text command and return the response.
     String processCommand(String command) {
       command.trim();
       command.toUpperCase();
 
       if (command.length() == 0) return "ERR:EMPTY";
 
-      // Informational commands
+      // Informational commands.
       if (command == "PING")      return "PONG";
       if (command == "VER")       return "VER:1";
       if (command == "GET:STATE") return buildStatePayload();
       if (command == "GET:MODE")  return _manualBypass ? "MODE:MANUAL" : "MODE:AUTO";
 
-      // Mode switching
+      // Mode switching.
       if (command == "MANUAL:ON")  { _manualBypass = true;  return "OK:MANUAL:ON"; }
       if (command == "MANUAL:OFF") { _manualBypass = false; return "OK:MANUAL:OFF"; }
 
-      // Setpoint commands
+      // Setpoint commands.
       if (command.startsWith("SET:TEMP:")) {
         float v; if (!parseFloat(command.substring(9), v)) return "ERR:FORMAT:TEMP";
         if (v < 15.0 || v > 30.0) return "ERR:RANGE:TEMP";
@@ -167,7 +167,7 @@ class CommandProcessor {
         _turnstile->setPeopleCount(v); return "OK:PEOPLE";
       }
 
-      // Servo commands (manual mode only)
+      // Servo commands (manual mode only).
       if (command == "SERVO:OPEN") {
         if (!_manualBypass) return "ERR:MODE";
         if (_servo == nullptr) return "ERR:SERVO";
@@ -186,7 +186,7 @@ class CommandProcessor {
         moveServoAbsolute(a); return "OK:SERVO:ANGLE";
       }
 
-      // Actuator commands (manual mode only)
+      // Actuator commands (manual mode only).
       if (command == "ACT:GREEN:ON")       return manualLed(_greenPin, HIGH, "OK:GREEN:ON");
       if (command == "ACT:GREEN:OFF")      return manualLed(_greenPin, LOW, "OK:GREEN:OFF");
       if (command == "ACT:RED:ON")         return manualLed(_redPin, HIGH, "OK:RED:ON");

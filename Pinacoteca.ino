@@ -2,7 +2,7 @@
 // Main sketch for the Pinacoteca gallery management system.
 // Manages: turnstile entry, climate control (temperature + humidity),
 // gallery lighting, small OLED status display, and an optional
-// Wi-Fi remote-control gateway (Arduino UNO R4 WiFi only).
+// Bluetooth remote-control gateway for App Inventor style text commands.
 
 #include <Servo.h>
 
@@ -23,14 +23,12 @@
 #endif
 
 #if PINACOTECA_REMOTE_ENABLED
-#include "lib/wifi/wifi_link.h"
-#include "lib/wifi/remote_gateway.h"
+#include "lib/bluetooth/bluetooth_link.h"
+#include "lib/bluetooth/remote_gateway.h"
 #endif
 
-// --- Wi-Fi credentials ---
-#define PINACOTECA_WIFI_SSID     ""
-#define PINACOTECA_WIFI_PASSWORD ""
-#define PINACOTECA_WIFI_PORT     7777
+// --- Bluetooth settings (serial fallback only) ---
+#define PINACOTECA_BLUETOOTH_BAUD 9600
 
 // --- Pin assignments ---
 const int PIN_SERVOMOTOR       = 3;
@@ -72,9 +70,7 @@ DisplayPanel      galleryDisplay(MAX_PEOPLE);
 
 // --- Remote channel ---
 #if PINACOTECA_REMOTE_ENABLED
-WifiLink wifiConnection(PINACOTECA_WIFI_SSID,
-                         PINACOTECA_WIFI_PASSWORD,
-                         PINACOTECA_WIFI_PORT);
+BluetoothLink bluetoothConnection(PINACOTECA_BLUETOOTH_BAUD);
 
 RemoteControlGateway remoteGateway(
     &mainThermostat,
@@ -88,7 +84,7 @@ RemoteControlGateway remoteGateway(
     PIN_COOLING_RGB_BLUE,
     PIN_HUMIDIFIER_LED,
     PIN_CEILING_LIGHTS,
-    wifiConnection,
+    bluetoothConnection,
     1000);
 
 bool isManualBypassEnabled() { return remoteGateway.isManualBypassEnabled(); }
@@ -152,6 +148,6 @@ void loop() {
   galleryDisplay.update(currentPeople, mainThermostat,
                         galleryHumidifier, galleryLighting);
 
-  // Remote channel (Wi-Fi)
+  // Remote channel (Bluetooth)
   updateRemoteChannel();
 }

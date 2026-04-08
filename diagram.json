@@ -257,7 +257,7 @@
       }
     },
     {
-      "type": "wokwi-ssd1306",
+      "type": "board-ssd1306",
       "id": "oled1",
       "top": -80,
       "left": 120,
@@ -587,13 +587,13 @@
     ],
     [
       "oled1:SCL",
-      "uno:A5",
+      "uno:SCL",
       "blue",
       []
     ],
     [
       "oled1:SDA",
-      "uno:A4",
+      "uno:SDA",
       "green",
       []
     ]

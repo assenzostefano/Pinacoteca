@@ -1,6 +1,6 @@
 // remote_gateway.h
-// Serial + Wi-Fi command gateway.
-// Reads commands from both Serial and a WifiConnection,
+// Serial + Bluetooth command gateway.
+// Reads commands from both Serial and a BluetoothConnection,
 // dispatches them to the CommandProcessor, and periodically
 // publishes the full system state.
 
@@ -9,12 +9,12 @@
 
 #include <Arduino.h>
 #include "command_processor.h"
-#include "wifi_connection.h"
+#include "bluetooth_connection.h"
 
 class RemoteControlGateway {
   private:
     CommandProcessor _cmd;
-    WifiConnection& _wifi;
+    BluetoothConnection& _bluetooth;
 
     unsigned long _statePeriodMs;
     unsigned long _lastStateMillis;
@@ -24,7 +24,7 @@ class RemoteControlGateway {
     size_t _serialLen;
     bool _serialOverflow;
 
-    // Publish state if enough time has passed
+    // Publish state if enough time has passed.
     void publishStateIfDue() {
       unsigned long now = millis();
       if (now - _lastStateMillis < _statePeriodMs) return;
@@ -32,12 +32,12 @@ class RemoteControlGateway {
       _lastStateMillis = now;
       String state = _cmd.buildStatePayload();
 
-      if (_wifi.isConnected()) {
-        _wifi.sendMessage(state);
+      if (_bluetooth.isConnected()) {
+        _bluetooth.sendMessage(state);
       }
     }
 
-    // Handle serial commands
+    // Handle serial commands.
     void handleSerial() {
       while (Serial.available() > 0) {
         char c = static_cast<char>(Serial.read());
@@ -66,14 +66,14 @@ class RemoteControlGateway {
       }
     }
 
-    // Handle Wi-Fi commands
-    void handleWifi() {
-      _wifi.poll();
+    // Handle Bluetooth commands.
+    void handleBluetooth() {
+      _bluetooth.poll();
 
       String command;
-      if (_wifi.readMessage(command)) {
+      if (_bluetooth.readMessage(command)) {
         String response = _cmd.processCommand(command);
-        _wifi.sendMessage(response);
+        _bluetooth.sendMessage(response);
       }
     }
 
@@ -87,27 +87,27 @@ class RemoteControlGateway {
         int greenPin, int redPin,
         int heatingPin, int coolingPin,
         int humidifierPin, int ceilingLightsPin,
-        WifiConnection& wifi,
+        BluetoothConnection& bluetooth,
         unsigned long statePeriodMs = 1000)
       : _cmd(thermostat, humidifier, lighting, turnstile, servo,
              greenPin, redPin, heatingPin, coolingPin,
              humidifierPin, ceilingLightsPin),
-        _wifi(wifi),
+        _bluetooth(bluetooth),
         _statePeriodMs(statePeriodMs),
         _lastStateMillis(0),
         _serialLen(0),
         _serialOverflow(false) {}
 
-    void begin() { _wifi.begin(); }
+    void begin() { _bluetooth.begin(); }
 
     bool isManualBypassEnabled() const {
       return _cmd.isManualBypassEnabled();
     }
 
-    // Process serial + Wi-Fi commands and publish state
+    // Process serial + Bluetooth commands and publish state.
     void update() {
       handleSerial();
-      handleWifi();
+      handleBluetooth();
       publishStateIfDue();
     }
 };

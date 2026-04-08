@@ -18,11 +18,11 @@
 #include "../lib/display/display.h"
 #include "../lib/display/lcd.h"
 #include "../lib/system/error_registry.h"
-#include "../lib/wifi/wifi_connection.h"
-#include "../lib/wifi/command_processor.h"
-#include "../lib/wifi/remote_gateway.h"
+#include "../lib/bluetooth/bluetooth_connection.h"
+#include "../lib/bluetooth/command_processor.h"
+#include "../lib/bluetooth/remote_gateway.h"
 
-class FakeWifiConnection : public WifiConnection {
+class FakeBluetoothConnection : public BluetoothConnection {
 public:
     bool started = false;
     bool connected = true;
@@ -486,7 +486,7 @@ TEST_F(BaseTest, DisplayErrorPageShownOnlyWithRealSensorError) {
     EXPECT_TRUE(line1.find("Temp sensor FAIL") != std::string::npos);
 }
 
-TEST_F(BaseTest, WifiCommandProcessorHandlesModeAndState) {
+TEST_F(BaseTest, BluetoothCommandProcessorHandlesModeAndState) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
@@ -510,7 +510,7 @@ TEST_F(BaseTest, WifiCommandProcessorHandlesModeAndState) {
     EXPECT_TRUE(state.find("M=MANUAL") != std::string::npos);
 }
 
-TEST_F(BaseTest, WifiCommandProcessorBlocksManualCommandsInAuto) {
+TEST_F(BaseTest, BluetoothCommandProcessorBlocksManualCommandsInAuto) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
@@ -525,7 +525,7 @@ TEST_F(BaseTest, WifiCommandProcessorBlocksManualCommandsInAuto) {
     EXPECT_EQ(cp.processCommand("ACT:GREEN:ON").std(), "ERR:MODE");
 }
 
-TEST_F(BaseTest, WifiCommandProcessorManualOverrideControlsActuators) {
+TEST_F(BaseTest, BluetoothCommandProcessorManualOverrideControlsActuators) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
@@ -548,7 +548,7 @@ TEST_F(BaseTest, WifiCommandProcessorManualOverrideControlsActuators) {
     EXPECT_EQ(__mock_analog_write[10], 128);
 }
 
-TEST_F(BaseTest, WifiCommandProcessorSetPeopleAndRanges) {
+TEST_F(BaseTest, BluetoothCommandProcessorSetPeopleAndRanges) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
@@ -567,7 +567,7 @@ TEST_F(BaseTest, WifiCommandProcessorSetPeopleAndRanges) {
     EXPECT_EQ(cp.processCommand("SET:LUX:10").std(), "ERR:RANGE:LUX");
 }
 
-TEST_F(BaseTest, WifiRemoteGatewayReadsSerialAndReplies) {
+TEST_F(BaseTest, BluetoothRemoteGatewayReadsSerialAndReplies) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
@@ -576,7 +576,7 @@ TEST_F(BaseTest, WifiRemoteGatewayReadsSerialAndReplies) {
     s.write(0);
     ts.begin(&s);
 
-    FakeWifiConnection bt;
+    FakeBluetoothConnection bt;
 
     RemoteControlGateway gateway(&th, &hc, &lc, &ts, &s, 4, 5, 9, 8, 11, 10, bt, 1000);
     gateway.begin();
@@ -589,7 +589,7 @@ TEST_F(BaseTest, WifiRemoteGatewayReadsSerialAndReplies) {
     EXPECT_TRUE(bt.started);
 }
 
-TEST_F(BaseTest, WifiRemoteGatewayProcessesWifiMessageAndPublishesState) {
+TEST_F(BaseTest, BluetoothRemoteGatewayProcessesBluetoothMessageAndPublishesState) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
@@ -602,7 +602,7 @@ TEST_F(BaseTest, WifiRemoteGatewayProcessesWifiMessageAndPublishesState) {
     __mock_analog_read[A1] = 200;
     dht_sensor.setHumidity(60.0f);
 
-    FakeWifiConnection bt;
+    FakeBluetoothConnection bt;
     bt.inbox.push_back("GET:MODE");
 
     RemoteControlGateway gateway(&th, &hc, &lc, &ts, &s, 4, 5, 9, 8, 11, 10, bt, 1000);
@@ -627,7 +627,7 @@ TEST_F(BaseTest, WifiRemoteGatewayProcessesWifiMessageAndPublishesState) {
     EXPECT_TRUE(hasState);
 }
 
-TEST_F(BaseTest, WifiCommandProcessorRejectsEmptyOrWhitespaceCommands) {
+TEST_F(BaseTest, BluetoothCommandProcessorRejectsEmptyOrWhitespaceCommands) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
@@ -642,7 +642,7 @@ TEST_F(BaseTest, WifiCommandProcessorRejectsEmptyOrWhitespaceCommands) {
     EXPECT_EQ(cp.processCommand("").std(), "ERR:EMPTY");
 }
 
-TEST_F(BaseTest, WifiCommandProcessorNormalizesCaseAndWhitespace) {
+TEST_F(BaseTest, BluetoothCommandProcessorNormalizesCaseAndWhitespace) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
@@ -659,7 +659,7 @@ TEST_F(BaseTest, WifiCommandProcessorNormalizesCaseAndWhitespace) {
     EXPECT_EQ(s.read(), 0);
 }
 
-TEST_F(BaseTest, WifiCommandProcessorRejectsMalformedNumericPayloads) {
+TEST_F(BaseTest, BluetoothCommandProcessorRejectsMalformedNumericPayloads) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
@@ -680,7 +680,7 @@ TEST_F(BaseTest, WifiCommandProcessorRejectsMalformedNumericPayloads) {
     EXPECT_EQ(cp.processCommand("ACT:PLAFONIERE:PWM:AA").std(), "ERR:FORMAT:PWM");
 }
 
-TEST_F(BaseTest, WifiCommandProcessorAcceptsBoundaryValues) {
+TEST_F(BaseTest, BluetoothCommandProcessorAcceptsBoundaryValues) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
@@ -707,7 +707,7 @@ TEST_F(BaseTest, WifiCommandProcessorAcceptsBoundaryValues) {
     EXPECT_EQ(cp.processCommand("ACT:PLAFONIERE:PWM:255").std(), "OK:PLAFONIERE:PWM");
 }
 
-TEST_F(BaseTest, WifiCommandProcessorManualOffBlocksManualAgain) {
+TEST_F(BaseTest, BluetoothCommandProcessorManualOffBlocksManualAgain) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
@@ -724,7 +724,7 @@ TEST_F(BaseTest, WifiCommandProcessorManualOffBlocksManualAgain) {
     EXPECT_EQ(cp.processCommand("SERVO:CLOSE").std(), "ERR:MODE");
 }
 
-TEST_F(BaseTest, WifiCommandProcessorUnknownCommandReturnsError) {
+TEST_F(BaseTest, BluetoothCommandProcessorUnknownCommandReturnsError) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
@@ -737,7 +737,7 @@ TEST_F(BaseTest, WifiCommandProcessorUnknownCommandReturnsError) {
     EXPECT_EQ(cp.processCommand("DO:SOMETHING").std(), "ERR:UNKNOWN");
 }
 
-TEST_F(BaseTest, WifiRemoteGatewayHandlesFragmentedSerialInput) {
+TEST_F(BaseTest, BluetoothRemoteGatewayHandlesFragmentedSerialInput) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
@@ -746,7 +746,7 @@ TEST_F(BaseTest, WifiRemoteGatewayHandlesFragmentedSerialInput) {
     s.write(0);
     ts.begin(&s);
 
-    FakeWifiConnection bt;
+    FakeBluetoothConnection bt;
     RemoteControlGateway gateway(&th, &hc, &lc, &ts, &s, 4, 5, 9, 8, 11, 10, bt, 1000);
     gateway.begin();
 
@@ -761,7 +761,7 @@ TEST_F(BaseTest, WifiRemoteGatewayHandlesFragmentedSerialInput) {
     EXPECT_EQ(Serial.logs.back(), "OK:MANUAL:ON");
 }
 
-TEST_F(BaseTest, WifiRemoteGatewayRejectsTooLongSerialCommand) {
+TEST_F(BaseTest, BluetoothRemoteGatewayRejectsTooLongSerialCommand) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
@@ -770,7 +770,7 @@ TEST_F(BaseTest, WifiRemoteGatewayRejectsTooLongSerialCommand) {
     s.write(0);
     ts.begin(&s);
 
-    FakeWifiConnection bt;
+    FakeBluetoothConnection bt;
     RemoteControlGateway gateway(&th, &hc, &lc, &ts, &s, 4, 5, 9, 8, 11, 10, bt, 1000);
     gateway.begin();
 
@@ -782,7 +782,7 @@ TEST_F(BaseTest, WifiRemoteGatewayRejectsTooLongSerialCommand) {
     EXPECT_EQ(Serial.logs.back(), "ERR:TOO_LONG");
 }
 
-TEST_F(BaseTest, WifiRemoteGatewaySkipsStatePublishWhenDisconnected) {
+TEST_F(BaseTest, BluetoothRemoteGatewaySkipsStatePublishWhenDisconnected) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
@@ -791,7 +791,7 @@ TEST_F(BaseTest, WifiRemoteGatewaySkipsStatePublishWhenDisconnected) {
     s.write(0);
     ts.begin(&s);
 
-    FakeWifiConnection bt;
+    FakeBluetoothConnection bt;
     bt.connected = false;
 
     RemoteControlGateway gateway(&th, &hc, &lc, &ts, &s, 4, 5, 9, 8, 11, 10, bt, 1000);
@@ -803,7 +803,7 @@ TEST_F(BaseTest, WifiRemoteGatewaySkipsStatePublishWhenDisconnected) {
     EXPECT_TRUE(bt.outbox.empty());
 }
 
-TEST_F(BaseTest, WifiRemoteGatewayProcessesQueuedWifiCommandsAcrossUpdates) {
+TEST_F(BaseTest, BluetoothRemoteGatewayProcessesQueuedBluetoothCommandsAcrossUpdates) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
@@ -812,7 +812,7 @@ TEST_F(BaseTest, WifiRemoteGatewayProcessesQueuedWifiCommandsAcrossUpdates) {
     s.write(0);
     ts.begin(&s);
 
-    FakeWifiConnection bt;
+    FakeBluetoothConnection bt;
     bt.inbox.push_back("PING");
     bt.inbox.push_back("VER");
 
