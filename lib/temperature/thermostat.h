@@ -1,7 +1,12 @@
-// thermostat.h
-// Climate controller — heating and cooling regulation.
-// Monitors temperature and activates heating or cooling
-// to maintain a target temperature, with a pause between state changes.
+/**
+ * @file thermostat.h
+ * @brief Climate controller — heating and cooling regulation.
+ *
+ * Monitors temperature via an NTC sensor and activates heating
+ * or cooling to maintain a target temperature. Implements a
+ * configurable pause between state transitions to prevent
+ * rapid oscillation of HVAC equipment.
+ */
 
 #ifndef THERMOSTAT_H
 #define THERMOSTAT_H
@@ -16,11 +21,14 @@ class Thermostat {
     uint8_t _heatingPin;
     uint8_t _coolingPin;
     float _targetTemp;
-    uint8_t _state; // 0 = OFF, 1 = Heating, 2 = Cooling
+    float _lastTemp;             ///< Cached last valid reading
+    uint8_t _state;              ///< 0 = OFF, 1 = Heating, 2 = Cooling
     unsigned long _previousMillis;
     unsigned long _pauseTime;
 
-    // Apply the current state to the actuators
+    static constexpr float TOLERANCE = 1.0f;
+
+    /// Apply the current state to the actuators
     bool applyState() {
       if (_state == 1) { // Heating
         return led(_heatingPin, HIGH) && led(_coolingPin, LOW);
@@ -32,12 +40,14 @@ class Thermostat {
     }
 
   public:
-    Thermostat(int sensorPin, float targetTemp, int heatingPin, int coolingPin,
+    Thermostat(uint8_t sensorPin, float targetTemp,
+               uint8_t heatingPin, uint8_t coolingPin,
                unsigned long pauseTime = 5000)
-      : _sensorPin(static_cast<uint8_t>(sensorPin)),
-        _heatingPin(static_cast<uint8_t>(heatingPin)),
-        _coolingPin(static_cast<uint8_t>(coolingPin)),
+      : _sensorPin(sensorPin),
+        _heatingPin(heatingPin),
+        _coolingPin(coolingPin),
         _targetTemp(targetTemp),
+        _lastTemp(SENSOR_ERROR_VALUE),
         _state(0),
         _previousMillis(0),
         _pauseTime(pauseTime) {}
@@ -48,7 +58,10 @@ class Thermostat {
       pinMode(_coolingPin, OUTPUT);
     }
 
-    // Run one control cycle
+    /**
+     * @brief Run one control cycle.
+     * @return true if the cycle completed normally, false on sensor error.
+     */
     bool update() {
       float temp = readTemperatureCelsius(_sensorPin);
       unsigned long now = millis();
@@ -62,10 +75,10 @@ class Thermostat {
         return false;
       }
 
+      _lastTemp = temp;
       pinacotecaClearError(PIN_ERR_TEMP_SENSOR);
 
-      const float TOLERANCE = 1.0;
-      int desired = 0; // 0 = OFF
+      uint8_t desired = 0; // 0 = OFF
 
       if (temp < (_targetTemp - TOLERANCE)) {
         desired = 1; // Heating
@@ -95,7 +108,7 @@ class Thermostat {
 
       if (now - _previousMillis >= _pauseTime) {
         _state = desired;
-        Serial.println("Climate mode changed successfully.");
+        Serial.println(F("Climate mode changed successfully."));
       }
 
       pinacotecaClearError(PIN_ERR_THERMOSTAT_ACTUATOR);
@@ -104,6 +117,11 @@ class Thermostat {
 
     void setTargetTemperature(float t)   { _targetTemp = t; }
     float getTargetTemperature() const   { return _targetTemp; }
+
+    /**
+     * @brief Get the current temperature reading.
+     * @note Performs a live ADC read each call — not a cached getter.
+     */
     float getCurrentTemperature() const  { return readTemperatureCelsius(_sensorPin); }
 };
 

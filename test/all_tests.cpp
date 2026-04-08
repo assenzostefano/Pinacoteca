@@ -22,12 +22,14 @@
 #include "../lib/bluetooth/command_processor.h"
 #include "../lib/bluetooth/remote_gateway.h"
 
+// ── Fake Bluetooth transport for tests ────────────────────────────
+
 class FakeBluetoothConnection : public BluetoothConnection {
 public:
     bool started = false;
     bool connected = true;
-    std::vector<String> inbox;
-    std::vector<String> outbox;
+    std::vector<std::string> inbox;
+    std::vector<std::string> outbox;
 
     bool begin() override {
         started = true;
@@ -40,20 +42,39 @@ public:
 
     void poll() override {}
 
-    bool readMessage(String& message) override {
+    bool readMessage(char* buf, uint8_t maxLen) override {
         if (inbox.empty()) {
             return false;
         }
 
-        message = inbox.front();
+        std::string msg = inbox.front();
         inbox.erase(inbox.begin());
+
+        size_t copyLen = (msg.size() < (size_t)(maxLen - 1))
+                           ? msg.size() : (size_t)(maxLen - 1);
+        memcpy(buf, msg.c_str(), copyLen);
+        buf[copyLen] = '\0';
         return true;
     }
 
-    void sendMessage(const String& message) override {
-        outbox.push_back(message);
+    void sendMessage(const char* message) override {
+        outbox.emplace_back(message ? message : "");
     }
 };
+
+// ── Helper: call CommandProcessor and return response as std::string ──
+
+static std::string runCommand(CommandProcessor& cp, const char* cmd) {
+    char cmdBuf[128];
+    strncpy(cmdBuf, cmd, sizeof(cmdBuf) - 1);
+    cmdBuf[sizeof(cmdBuf) - 1] = '\0';
+
+    char response[128];
+    cp.processCommand(cmdBuf, response);
+    return std::string(response);
+}
+
+// ── Base test fixture ─────────────────────────────────────────────
 
 class BaseTest : public ::testing::Test {
 protected:
@@ -63,6 +84,8 @@ protected:
         pinacotecaClearAllErrors();
     }
 };
+
+// ── LED tests ─────────────────────────────────────────────────────
 
 TEST_F(BaseTest, LedWriteDigitalState) {
     EXPECT_TRUE(led(4, HIGH));
@@ -76,6 +99,8 @@ TEST_F(BaseTest, LedDimmingWritesPwm) {
     EXPECT_TRUE(ledDimming(10, 128));
     EXPECT_EQ(__mock_analog_write[10], 128);
 }
+
+// ── Stoplight tests ───────────────────────────────────────────────
 
 TEST_F(BaseTest, StoplightBelowMaxSetsGreen) {
     Stoplight sl(4, 5);
@@ -94,6 +119,8 @@ TEST_F(BaseTest, StoplightAtMaxSetsRed) {
     EXPECT_EQ(__mock_digital_write[5], HIGH);
 }
 
+// ── Servo tests ───────────────────────────────────────────────────
+
 TEST_F(BaseTest, AntiSufferingServoAllowsSafeMove) {
     Servo s;
     s.attach(3);
@@ -110,6 +137,8 @@ TEST_F(BaseTest, AntiSufferingServoBlocksOutOfRange) {
     ASSERT_FALSE(Serial.logs.empty());
     EXPECT_EQ(Serial.logs.back(), "Limit movement Servo Motor");
 }
+
+// ── Turnstile tests ───────────────────────────────────────────────
 
 TEST_F(BaseTest, TurnstileIncrementsAndDecrementsPeople) {
     Turnstile t(6, 7, 5);
@@ -155,6 +184,8 @@ TEST_F(BaseTest, TurnstileBeginConfiguresPins) {
     EXPECT_EQ(__mock_pin_mode[7], INPUT);
 }
 
+// ── Temperature tests ─────────────────────────────────────────────
+
 TEST_F(BaseTest, TemperatureReaderReturnsErrorAtExtremes) {
     __mock_analog_read[A0] = 0;
     EXPECT_FLOAT_EQ(readTemperatureCelsius(A0), -999.0f);
@@ -172,6 +203,8 @@ TEST_F(BaseTest, TemperatureReaderReturnsFiniteForValidInput) {
     EXPECT_NE(t, -999.0f);
     EXPECT_FALSE(pinacotecaHasError(PIN_ERR_TEMP_SENSOR));
 }
+
+// ── Thermostat tests ──────────────────────────────────────────────
 
 TEST_F(BaseTest, ThermostatSensorErrorTurnsEverythingOff) {
     Thermostat th(A0, 20.0f, 9, 8);
@@ -215,6 +248,8 @@ TEST_F(BaseTest, ThermostatCoolingBranch) {
     EXPECT_EQ(__mock_analog_write[8], 255);
 }
 
+// ── Humidity tests ────────────────────────────────────────────────
+
 TEST_F(BaseTest, HumidityReadAndError) {
     dht_sensor.setHumidity(66.0f);
     EXPECT_FLOAT_EQ(readHumidity(), 66.0f);
@@ -256,6 +291,8 @@ TEST_F(BaseTest, HumidifierSetGetTargetWorks) {
     EXPECT_FLOAT_EQ(hc.getTargetHumidity(), 70.0f);
 }
 
+// ── Photoresistor tests ───────────────────────────────────────────
+
 TEST_F(BaseTest, PhotoresistorLuxEdgeCases) {
     __mock_analog_read[A1] = 0;
     EXPECT_FLOAT_EQ(readLux(A1), -999.0f);
@@ -269,6 +306,8 @@ TEST_F(BaseTest, PhotoresistorLuxEdgeCases) {
     EXPECT_GT(readLux(A1), 0.0f);
     EXPECT_FALSE(pinacotecaHasError(PIN_ERR_LIGHT_SENSOR));
 }
+
+// ── Lighting control tests ────────────────────────────────────────
 
 TEST_F(BaseTest, LightingControlWritesPwm) {
     LightingControl lc(A1, 10, 200);
@@ -297,6 +336,8 @@ TEST_F(BaseTest, LightingControlBeginAndSetGetTarget) {
     EXPECT_EQ(lc.getTargetLux(), 250);
 }
 
+// ── Display tests ─────────────────────────────────────────────────
+
 TEST_F(BaseTest, DisplayInterfaceBasicOperations) {
     DisplayInterface di(12, 13, A2, A3, A4, A5);
     di.begin(16, 2);
@@ -323,6 +364,7 @@ TEST_F(BaseTest, DisplayPanelRotatesPages) {
     __mock_analog_read[A1] = 200;
     dht_sensor.setHumidity(60.0f);
 
+    // Advance past splash screen (800 ms)
     __mock_millis = 1000;
     dp.update(2, th, hc, lc);
     std::string page0 = LiquidCrystal::lastInstance->line(0);
@@ -486,6 +528,8 @@ TEST_F(BaseTest, DisplayErrorPageShownOnlyWithRealSensorError) {
     EXPECT_TRUE(line1.find("Temp sensor FAIL") != std::string::npos);
 }
 
+// ── Bluetooth command processor tests ─────────────────────────────
+
 TEST_F(BaseTest, BluetoothCommandProcessorHandlesModeAndState) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
@@ -501,11 +545,11 @@ TEST_F(BaseTest, BluetoothCommandProcessorHandlesModeAndState) {
 
     CommandProcessor cp(&th, &hc, &lc, &ts, &s, 4, 5, 9, 8, 11, 10);
 
-    EXPECT_EQ(cp.processCommand("GET:MODE").std(), "MODE:AUTO");
-    EXPECT_EQ(cp.processCommand("MANUAL:ON").std(), "OK:MANUAL:ON");
-    EXPECT_EQ(cp.processCommand("GET:MODE").std(), "MODE:MANUAL");
+    EXPECT_EQ(runCommand(cp, "GET:MODE"), "MODE:AUTO");
+    EXPECT_EQ(runCommand(cp, "MANUAL:ON"), "OK:MANUAL:ON");
+    EXPECT_EQ(runCommand(cp, "GET:MODE"), "MODE:MANUAL");
 
-    std::string state = cp.processCommand("GET:STATE").std();
+    std::string state = runCommand(cp, "GET:STATE");
     EXPECT_TRUE(state.find("STATE:") == 0);
     EXPECT_TRUE(state.find("M=MANUAL") != std::string::npos);
 }
@@ -521,8 +565,8 @@ TEST_F(BaseTest, BluetoothCommandProcessorBlocksManualCommandsInAuto) {
 
     CommandProcessor cp(&th, &hc, &lc, &ts, &s, 4, 5, 9, 8, 11, 10);
 
-    EXPECT_EQ(cp.processCommand("SERVO:OPEN").std(), "ERR:MODE");
-    EXPECT_EQ(cp.processCommand("ACT:GREEN:ON").std(), "ERR:MODE");
+    EXPECT_EQ(runCommand(cp, "SERVO:OPEN"), "ERR:MODE");
+    EXPECT_EQ(runCommand(cp, "ACT:GREEN:ON"), "ERR:MODE");
 }
 
 TEST_F(BaseTest, BluetoothCommandProcessorManualOverrideControlsActuators) {
@@ -537,14 +581,14 @@ TEST_F(BaseTest, BluetoothCommandProcessorManualOverrideControlsActuators) {
 
     CommandProcessor cp(&th, &hc, &lc, &ts, &s, 4, 5, 9, 8, 11, 10);
 
-    EXPECT_EQ(cp.processCommand("MANUAL:ON").std(), "OK:MANUAL:ON");
-    EXPECT_EQ(cp.processCommand("SERVO:ANGLE:45").std(), "OK:SERVO:ANGLE");
+    EXPECT_EQ(runCommand(cp, "MANUAL:ON"), "OK:MANUAL:ON");
+    EXPECT_EQ(runCommand(cp, "SERVO:ANGLE:45"), "OK:SERVO:ANGLE");
     EXPECT_EQ(s.read(), 45);
 
-    EXPECT_EQ(cp.processCommand("ACT:GREEN:ON").std(), "OK:GREEN:ON");
+    EXPECT_EQ(runCommand(cp, "ACT:GREEN:ON"), "OK:GREEN:ON");
     EXPECT_EQ(__mock_digital_write[4], HIGH);
 
-    EXPECT_EQ(cp.processCommand("ACT:PLAFONIERE:PWM:128").std(), "OK:PLAFONIERE:PWM");
+    EXPECT_EQ(runCommand(cp, "ACT:PLAFONIERE:PWM:128"), "OK:PLAFONIERE:PWM");
     EXPECT_EQ(__mock_analog_write[10], 128);
 }
 
@@ -559,13 +603,15 @@ TEST_F(BaseTest, BluetoothCommandProcessorSetPeopleAndRanges) {
 
     CommandProcessor cp(&th, &hc, &lc, &ts, &s, 4, 5, 9, 8, 11, 10);
 
-    EXPECT_EQ(cp.processCommand("SET:PEOPLE:3").std(), "OK:PEOPLE");
+    EXPECT_EQ(runCommand(cp, "SET:PEOPLE:3"), "OK:PEOPLE");
     EXPECT_EQ(ts.getPeopleCount(), 3);
 
-    EXPECT_EQ(cp.processCommand("SET:PEOPLE:9").std(), "ERR:RANGE:PEOPLE");
-    EXPECT_EQ(cp.processCommand("SET:TEMP:35").std(), "ERR:RANGE:TEMP");
-    EXPECT_EQ(cp.processCommand("SET:LUX:10").std(), "ERR:RANGE:LUX");
+    EXPECT_EQ(runCommand(cp, "SET:PEOPLE:9"), "ERR:RANGE:PEOPLE");
+    EXPECT_EQ(runCommand(cp, "SET:TEMP:35"), "ERR:RANGE:TEMP");
+    EXPECT_EQ(runCommand(cp, "SET:LUX:10"), "ERR:RANGE:LUX");
 }
+
+// ── Remote gateway tests ──────────────────────────────────────────
 
 TEST_F(BaseTest, BluetoothRemoteGatewayReadsSerialAndReplies) {
     Thermostat th(A0, 20.0f, 9, 8);
@@ -612,14 +658,14 @@ TEST_F(BaseTest, BluetoothRemoteGatewayProcessesBluetoothMessageAndPublishesStat
     gateway.update();
 
     ASSERT_FALSE(bt.outbox.empty());
-    EXPECT_EQ(bt.outbox.front().std(), "MODE:AUTO");
+    EXPECT_EQ(bt.outbox.front(), "MODE:AUTO");
 
     __mock_millis = 1500;
     gateway.update();
 
     bool hasState = false;
     for (const auto& msg : bt.outbox) {
-        if (msg.std().find("STATE:") == 0) {
+        if (msg.find("STATE:") == 0) {
             hasState = true;
             break;
         }
@@ -638,8 +684,8 @@ TEST_F(BaseTest, BluetoothCommandProcessorRejectsEmptyOrWhitespaceCommands) {
 
     CommandProcessor cp(&th, &hc, &lc, &ts, &s, 4, 5, 9, 8, 11, 10);
 
-    EXPECT_EQ(cp.processCommand("   ").std(), "ERR:EMPTY");
-    EXPECT_EQ(cp.processCommand("").std(), "ERR:EMPTY");
+    EXPECT_EQ(runCommand(cp, "   "), "ERR:EMPTY");
+    EXPECT_EQ(runCommand(cp, ""), "ERR:EMPTY");
 }
 
 TEST_F(BaseTest, BluetoothCommandProcessorNormalizesCaseAndWhitespace) {
@@ -653,9 +699,9 @@ TEST_F(BaseTest, BluetoothCommandProcessorNormalizesCaseAndWhitespace) {
 
     CommandProcessor cp(&th, &hc, &lc, &ts, &s, 4, 5, 9, 8, 11, 10);
 
-    EXPECT_EQ(cp.processCommand("  pInG  ").std(), "PONG");
-    EXPECT_EQ(cp.processCommand("  manual:on  ").std(), "OK:MANUAL:ON");
-    EXPECT_EQ(cp.processCommand("  servo:close  ").std(), "OK:SERVO:CLOSE");
+    EXPECT_EQ(runCommand(cp, "  pInG  "), "PONG");
+    EXPECT_EQ(runCommand(cp, "  manual:on  "), "OK:MANUAL:ON");
+    EXPECT_EQ(runCommand(cp, "  servo:close  "), "OK:SERVO:CLOSE");
     EXPECT_EQ(s.read(), 0);
 }
 
@@ -670,14 +716,14 @@ TEST_F(BaseTest, BluetoothCommandProcessorRejectsMalformedNumericPayloads) {
 
     CommandProcessor cp(&th, &hc, &lc, &ts, &s, 4, 5, 9, 8, 11, 10);
 
-    EXPECT_EQ(cp.processCommand("SET:TEMP:abc").std(), "ERR:FORMAT:TEMP");
-    EXPECT_EQ(cp.processCommand("SET:HUM:50X").std(), "ERR:FORMAT:HUM");
-    EXPECT_EQ(cp.processCommand("SET:LUX:100.5").std(), "ERR:FORMAT:LUX");
-    EXPECT_EQ(cp.processCommand("SET:PEOPLE:2A").std(), "ERR:FORMAT:PEOPLE");
+    EXPECT_EQ(runCommand(cp, "SET:TEMP:abc"), "ERR:FORMAT:TEMP");
+    EXPECT_EQ(runCommand(cp, "SET:HUM:50X"), "ERR:FORMAT:HUM");
+    EXPECT_EQ(runCommand(cp, "SET:LUX:100.5"), "ERR:FORMAT:LUX");
+    EXPECT_EQ(runCommand(cp, "SET:PEOPLE:2A"), "ERR:FORMAT:PEOPLE");
 
-    EXPECT_EQ(cp.processCommand("MANUAL:ON").std(), "OK:MANUAL:ON");
-    EXPECT_EQ(cp.processCommand("SERVO:ANGLE:NaN").std(), "ERR:FORMAT:SERVO");
-    EXPECT_EQ(cp.processCommand("ACT:PLAFONIERE:PWM:AA").std(), "ERR:FORMAT:PWM");
+    EXPECT_EQ(runCommand(cp, "MANUAL:ON"), "OK:MANUAL:ON");
+    EXPECT_EQ(runCommand(cp, "SERVO:ANGLE:NaN"), "ERR:FORMAT:SERVO");
+    EXPECT_EQ(runCommand(cp, "ACT:PLAFONIERE:PWM:AA"), "ERR:FORMAT:PWM");
 }
 
 TEST_F(BaseTest, BluetoothCommandProcessorAcceptsBoundaryValues) {
@@ -691,20 +737,20 @@ TEST_F(BaseTest, BluetoothCommandProcessorAcceptsBoundaryValues) {
 
     CommandProcessor cp(&th, &hc, &lc, &ts, &s, 4, 5, 9, 8, 11, 10);
 
-    EXPECT_EQ(cp.processCommand("SET:TEMP:15.0").std(), "OK:TEMP");
-    EXPECT_EQ(cp.processCommand("SET:TEMP:30.0").std(), "OK:TEMP");
-    EXPECT_EQ(cp.processCommand("SET:HUM:40.0").std(), "OK:HUM");
-    EXPECT_EQ(cp.processCommand("SET:HUM:80.0").std(), "OK:HUM");
-    EXPECT_EQ(cp.processCommand("SET:LUX:50").std(), "OK:LUX");
-    EXPECT_EQ(cp.processCommand("SET:LUX:1200").std(), "OK:LUX");
-    EXPECT_EQ(cp.processCommand("SET:PEOPLE:0").std(), "OK:PEOPLE");
-    EXPECT_EQ(cp.processCommand("SET:PEOPLE:5").std(), "OK:PEOPLE");
+    EXPECT_EQ(runCommand(cp, "SET:TEMP:15.0"), "OK:TEMP");
+    EXPECT_EQ(runCommand(cp, "SET:TEMP:30.0"), "OK:TEMP");
+    EXPECT_EQ(runCommand(cp, "SET:HUM:40.0"), "OK:HUM");
+    EXPECT_EQ(runCommand(cp, "SET:HUM:80.0"), "OK:HUM");
+    EXPECT_EQ(runCommand(cp, "SET:LUX:50"), "OK:LUX");
+    EXPECT_EQ(runCommand(cp, "SET:LUX:1200"), "OK:LUX");
+    EXPECT_EQ(runCommand(cp, "SET:PEOPLE:0"), "OK:PEOPLE");
+    EXPECT_EQ(runCommand(cp, "SET:PEOPLE:5"), "OK:PEOPLE");
 
-    EXPECT_EQ(cp.processCommand("MANUAL:ON").std(), "OK:MANUAL:ON");
-    EXPECT_EQ(cp.processCommand("SERVO:ANGLE:0").std(), "OK:SERVO:ANGLE");
-    EXPECT_EQ(cp.processCommand("SERVO:ANGLE:180").std(), "OK:SERVO:ANGLE");
-    EXPECT_EQ(cp.processCommand("ACT:PLAFONIERE:PWM:0").std(), "OK:PLAFONIERE:PWM");
-    EXPECT_EQ(cp.processCommand("ACT:PLAFONIERE:PWM:255").std(), "OK:PLAFONIERE:PWM");
+    EXPECT_EQ(runCommand(cp, "MANUAL:ON"), "OK:MANUAL:ON");
+    EXPECT_EQ(runCommand(cp, "SERVO:ANGLE:0"), "OK:SERVO:ANGLE");
+    EXPECT_EQ(runCommand(cp, "SERVO:ANGLE:180"), "OK:SERVO:ANGLE");
+    EXPECT_EQ(runCommand(cp, "ACT:PLAFONIERE:PWM:0"), "OK:PLAFONIERE:PWM");
+    EXPECT_EQ(runCommand(cp, "ACT:PLAFONIERE:PWM:255"), "OK:PLAFONIERE:PWM");
 }
 
 TEST_F(BaseTest, BluetoothCommandProcessorManualOffBlocksManualAgain) {
@@ -718,10 +764,10 @@ TEST_F(BaseTest, BluetoothCommandProcessorManualOffBlocksManualAgain) {
 
     CommandProcessor cp(&th, &hc, &lc, &ts, &s, 4, 5, 9, 8, 11, 10);
 
-    EXPECT_EQ(cp.processCommand("MANUAL:ON").std(), "OK:MANUAL:ON");
-    EXPECT_EQ(cp.processCommand("SERVO:OPEN").std(), "OK:SERVO:OPEN");
-    EXPECT_EQ(cp.processCommand("MANUAL:OFF").std(), "OK:MANUAL:OFF");
-    EXPECT_EQ(cp.processCommand("SERVO:CLOSE").std(), "ERR:MODE");
+    EXPECT_EQ(runCommand(cp, "MANUAL:ON"), "OK:MANUAL:ON");
+    EXPECT_EQ(runCommand(cp, "SERVO:OPEN"), "OK:SERVO:OPEN");
+    EXPECT_EQ(runCommand(cp, "MANUAL:OFF"), "OK:MANUAL:OFF");
+    EXPECT_EQ(runCommand(cp, "SERVO:CLOSE"), "ERR:MODE");
 }
 
 TEST_F(BaseTest, BluetoothCommandProcessorUnknownCommandReturnsError) {
@@ -734,7 +780,7 @@ TEST_F(BaseTest, BluetoothCommandProcessorUnknownCommandReturnsError) {
     ts.begin(&s);
 
     CommandProcessor cp(&th, &hc, &lc, &ts, &s, 4, 5, 9, 8, 11, 10);
-    EXPECT_EQ(cp.processCommand("DO:SOMETHING").std(), "ERR:UNKNOWN");
+    EXPECT_EQ(runCommand(cp, "DO:SOMETHING"), "ERR:UNKNOWN");
 }
 
 TEST_F(BaseTest, BluetoothRemoteGatewayHandlesFragmentedSerialInput) {
@@ -825,8 +871,8 @@ TEST_F(BaseTest, BluetoothRemoteGatewayProcessesQueuedBluetoothCommandsAcrossUpd
     bool hasPong = false;
     bool hasVer = false;
     for (const auto& msg : bt.outbox) {
-        if (msg.std() == "PONG") hasPong = true;
-        if (msg.std() == "VER:1") hasVer = true;
+        if (msg == "PONG") hasPong = true;
+        if (msg == "VER:1") hasVer = true;
     }
 
     EXPECT_TRUE(hasPong);

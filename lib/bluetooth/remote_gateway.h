@@ -1,8 +1,11 @@
-// remote_gateway.h
-// Serial + Bluetooth command gateway.
-// Reads commands from both Serial and a BluetoothConnection,
-// dispatches them to the CommandProcessor, and periodically
-// publishes the full system state.
+/**
+ * @file remote_gateway.h
+ * @brief Serial + Bluetooth command gateway (zero heap allocation).
+ *
+ * Reads commands from both Serial and a BluetoothConnection,
+ * dispatches them to the CommandProcessor, and periodically
+ * publishes the full system state.
+ */
 
 #ifndef REMOTE_GATEWAY_H
 #define REMOTE_GATEWAY_H
@@ -19,32 +22,36 @@ class RemoteControlGateway {
     unsigned long _statePeriodMs;
     unsigned long _lastStateMillis;
 
-    static const size_t RX_BUFFER_SIZE = 96;
+    static constexpr uint8_t RX_BUFFER_SIZE = BT_MSG_MAX;
     char _serialBuf[RX_BUFFER_SIZE];
-    size_t _serialLen;
+    uint8_t _serialLen;
     bool _serialOverflow;
 
-    // Publish state if enough time has passed.
+    /// Response buffer shared by serial and BT handlers
+    char _responseBuf[128];
+
+    /// Publish state if enough time has passed.
     void publishStateIfDue() {
       unsigned long now = millis();
       if (now - _lastStateMillis < _statePeriodMs) return;
 
       _lastStateMillis = now;
-      String state = _cmd.buildStatePayload();
 
       if (_bluetooth.isConnected()) {
-        _bluetooth.sendMessage(state);
+        char stateBuf[128];
+        _cmd.buildStatePayload(stateBuf, sizeof(stateBuf));
+        _bluetooth.sendMessage(stateBuf);
       }
     }
 
-    // Handle serial commands.
+    /// Handle serial commands.
     void handleSerial() {
       while (Serial.available() > 0) {
         char c = static_cast<char>(Serial.read());
 
         if (c == '\n' || c == '\r') {
           if (_serialOverflow) {
-            Serial.println("ERR:TOO_LONG");
+            Serial.println(F("ERR:TOO_LONG"));
             _serialLen = 0;
             _serialOverflow = false;
             continue;
@@ -52,8 +59,8 @@ class RemoteControlGateway {
           if (_serialLen == 0) continue;
 
           _serialBuf[_serialLen] = '\0';
-          String response = _cmd.processCommand(String(_serialBuf));
-          Serial.println(response);
+          _cmd.processCommand(_serialBuf, _responseBuf);
+          Serial.println(_responseBuf);
           _serialLen = 0;
           continue;
         }
@@ -66,14 +73,14 @@ class RemoteControlGateway {
       }
     }
 
-    // Handle Bluetooth commands.
+    /// Handle Bluetooth commands.
     void handleBluetooth() {
       _bluetooth.poll();
 
-      String command;
-      if (_bluetooth.readMessage(command)) {
-        String response = _cmd.processCommand(command);
-        _bluetooth.sendMessage(response);
+      char cmdBuf[BT_MSG_MAX];
+      if (_bluetooth.readMessage(cmdBuf, sizeof(cmdBuf))) {
+        _cmd.processCommand(cmdBuf, _responseBuf);
+        _bluetooth.sendMessage(_responseBuf);
       }
     }
 
@@ -84,9 +91,9 @@ class RemoteControlGateway {
         LightingControl* lighting,
         Turnstile* turnstile,
         Servo* servo,
-        int greenPin, int redPin,
-        int heatingPin, int coolingPin,
-        int humidifierPin, int ceilingLightsPin,
+        uint8_t greenPin, uint8_t redPin,
+        uint8_t heatingPin, uint8_t coolingPin,
+        uint8_t humidifierPin, uint8_t ceilingLightsPin,
         BluetoothConnection& bluetooth,
         unsigned long statePeriodMs = 1000)
       : _cmd(thermostat, humidifier, lighting, turnstile, servo,
@@ -96,7 +103,10 @@ class RemoteControlGateway {
         _statePeriodMs(statePeriodMs),
         _lastStateMillis(0),
         _serialLen(0),
-        _serialOverflow(false) {}
+        _serialOverflow(false) {
+      _serialBuf[0] = '\0';
+      _responseBuf[0] = '\0';
+    }
 
     void begin() { _bluetooth.begin(); }
 
@@ -104,7 +114,7 @@ class RemoteControlGateway {
       return _cmd.isManualBypassEnabled();
     }
 
-    // Process serial + Bluetooth commands and publish state.
+    /// Process serial + Bluetooth commands and publish state.
     void update() {
       handleSerial();
       handleBluetooth();

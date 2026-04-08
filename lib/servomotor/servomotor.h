@@ -1,6 +1,11 @@
-// servomotor.h
-// Safe servo motor driver with range protection.
-// Prevents the servo from exceeding the 0-180 degree limits.
+/**
+ * @file servomotor.h
+ * @brief Safe servo motor driver with 0–180° range protection.
+ *
+ * Prevents the servo from exceeding mechanical limits.
+ * Provides both a class interface (SafeServo) and a legacy
+ * free-function wrapper (antiSufferingServo).
+ */
 
 #ifndef SERVOMOTOR_H
 #define SERVOMOTOR_H
@@ -9,16 +14,20 @@
 #include <Servo.h>
 #include "../system/error_registry.h"
 
-// Class that manages a servo motor with range protection
+/**
+ * @brief Wraps a Servo pointer and enforces 0–180° bounds on every move.
+ */
 class SafeServo {
   private:
-    Servo* _servo; // Pointer to the servo
+    Servo* _servo;
 
   public:
-    // Constructor: pass a pointer to the servo
-    SafeServo(Servo* servo) : _servo(servo) {}
+    explicit SafeServo(Servo* servo) : _servo(servo) {}
 
-    // Move the servo by a relative angle (e.g. +90, -90)
+    /**
+     * @brief Move the servo by a relative angle (e.g. +90, -90).
+     * @return true if the move was within bounds and executed.
+     */
     bool move(int delta) {
       if (_servo == nullptr || !_servo->attached()) {
         pinacotecaSetError(PIN_ERR_SERVO);
@@ -29,7 +38,7 @@ class SafeServo {
       int newAngle = currentPos + delta;
 
       if (newAngle > 180 || newAngle < 0) {
-        Serial.println("Limit movement Servo Motor");
+        Serial.println(F("Limit movement Servo Motor"));
         pinacotecaSetError(PIN_ERR_SERVO);
         return false;
       }
@@ -39,20 +48,23 @@ class SafeServo {
       return true;
     }
 
-    // Move the servo to an absolute angle (0-180)
+    /**
+     * @brief Move the servo to an absolute angle (0–180).
+     * @return true if the target was within bounds and reached.
+     */
     bool moveTo(int angle) {
       if (_servo == nullptr) return false;
       int delta = angle - _servo->read();
       return move(delta);
     }
 
-    // Read the current position of the servo
+    /** @brief Read the current servo position in degrees. */
     int read() const {
       return (_servo != nullptr) ? _servo->read() : -1;
     }
 };
 
-// Legacy wrapper — prefer SafeServo class
+/** @brief Legacy wrapper — prefer SafeServo class. */
 inline bool antiSufferingServo(int angle, Servo& s) {
   SafeServo ss(&s);
   return ss.move(angle);

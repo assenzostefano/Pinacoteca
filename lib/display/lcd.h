@@ -1,7 +1,12 @@
-// lcd.h
-// Multi-page LCD panel for the Pinacoteca gallery.
-// Rotates through pages: date/time, status, faults, sensor errors.
-// Refreshes once per second and advances every 5 seconds.
+/**
+ * @file lcd.h
+ * @brief Multi-page display panel for the Pinacoteca gallery.
+ *
+ * Rotates through pages: date/time, status, faults, sensor errors.
+ * Refreshes once per second and advances every 5 seconds.
+ * On Arduino targets uses an I2C OLED (SSD1306 128×64),
+ * on host it falls back to a LiquidCrystal mock.
+ */
 
 #ifndef LCD_H
 #define LCD_H
@@ -20,22 +25,22 @@ class DisplayPanel {
     unsigned long _lastRefresh;
     unsigned long _lastPageChange;
     unsigned long _logoUntil;
-    byte _page;
-    int _maxPeople;
-  // Default 32x32 placeholder logo (replace with company bitmap).
-  static const uint8_t DEFAULT_LOGO_32x32[128];
+    uint8_t _page;
+    uint8_t _maxPeople;
 
+    /// Default 32×32 placeholder logo (replace with company bitmap).
+    static const uint8_t DEFAULT_LOGO_32x32[128];
 
-    // Compile-time clock seed
-    int _baseYear;
-    byte _baseMonth;
-    byte _baseDay;
-    byte _baseHour;
-    byte _baseMinute;
-    byte _baseSecond;
+    // ── Compile-time clock seed ──────────────────────────
+    int16_t _baseYear;
+    uint8_t _baseMonth;
+    uint8_t _baseDay;
+    uint8_t _baseHour;
+    uint8_t _baseMinute;
+    uint8_t _baseSecond;
 
-    // Convert month name from __DATE__ macro to a number
-    byte monthFromString(const char* mon) {
+    /// Convert month name from __DATE__ macro to a number (1–12)
+    static uint8_t monthFromString(const char* mon) {
       if (strncmp(mon, "Jan", 3) == 0) return  1;
       if (strncmp(mon, "Feb", 3) == 0) return  2;
       if (strncmp(mon, "Mar", 3) == 0) return  3;
@@ -50,39 +55,39 @@ class DisplayPanel {
       return 12;
     }
 
-    bool isLeapYear(int year) {
+    static bool isLeapYear(int16_t year) {
       if (year % 400 == 0) return true;
       if (year % 100 == 0) return false;
       return (year % 4 == 0);
     }
 
-    byte daysInMonth(int year, byte month) {
+    static uint8_t daysInMonth(int16_t year, uint8_t month) {
       if (month == 2) return isLeapYear(year) ? 29 : 28;
       if (month == 4 || month == 6 || month == 9 || month == 11) return 30;
       return 31;
     }
 
-    // Zeller's formula: returns 0=Mon, 1=Tue, ..., 6=Sun
-    byte weekdayIndex(int year, byte month, byte day) {
+    /// Zeller's formula: returns 0=Mon … 6=Sun
+    static uint8_t weekdayIndex(int16_t year, uint8_t month, uint8_t day) {
       int y = year;
       int m = month;
       if (m < 3) { m += 12; y -= 1; }
       int k = y % 100;
       int j = y / 100;
       int h = (day + (13 * (m + 1)) / 5 + k + k / 4 + j / 4 + 5 * j) % 7;
-      return (h + 5) % 7;
+      return static_cast<uint8_t>((h + 5) % 7);
     }
 
-    const char* weekdayName(byte index) {
-      static const char* names[7] = {
+    static const char* weekdayName(uint8_t index) {
+      static const char* const names[7] = {
         "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"
       };
       return (index > 6) ? "---" : names[index];
     }
 
-    // Calculate current date and time from compile time + millis()
-    void getCurrentDateTime(int& year, byte& month, byte& day,
-                            byte& hour, byte& minute, byte& second) {
+    /// Calculate current date/time from compile stamp + millis()
+    void getCurrentDateTime(int16_t& year, uint8_t& month, uint8_t& day,
+                            uint8_t& hour, uint8_t& minute, uint8_t& second) {
       unsigned long totalSec = millis() / 1000UL;
       unsigned long secOfDay = (unsigned long)_baseHour * 3600UL
                              + (unsigned long)_baseMinute * 60UL
@@ -92,9 +97,9 @@ class DisplayPanel {
       unsigned long daysOff = totalSec / 86400UL;
       unsigned long daySec = totalSec % 86400UL;
 
-      hour   = daySec / 3600UL;  daySec %= 3600UL;
-      minute = daySec / 60UL;
-      second = daySec % 60UL;
+      hour   = static_cast<uint8_t>(daySec / 3600UL);  daySec %= 3600UL;
+      minute = static_cast<uint8_t>(daySec / 60UL);
+      second = static_cast<uint8_t>(daySec % 60UL);
 
       year  = _baseYear;
       month = _baseMonth;
@@ -111,12 +116,12 @@ class DisplayPanel {
       }
     }
 
-    // --- Page renderers ---
+    // ── Page renderers ───────────────────────────────────
 
     void printDateTimePage() {
-      int yr; byte mo, dy, hr, mn, sc;
+      int16_t yr; uint8_t mo, dy, hr, mn, sc;
       getCurrentDateTime(yr, mo, dy, hr, mn, sc);
-      byte wd = weekdayIndex(yr, mo, dy);
+      uint8_t wd = weekdayIndex(yr, mo, dy);
 
 #if defined(ARDUINO)
       char line1[22], line2[22], line3[22];
@@ -140,14 +145,14 @@ class DisplayPanel {
 
     void printStatusPage(int people, float temp, float tgtTemp,
                          float hum, float tgtHum, float lux, int tgtLux) {
-      const float tol = 1.0;
+      const float tol = 1.0f;
       char tempStr[8], humStr[8];
 
       if (temp <= SENSOR_ERROR_VALUE) snprintf(tempStr, sizeof(tempStr), "ERR");
       else dtostrf(temp, 4, 1, tempStr);
 
       if (hum <= SENSOR_ERROR_VALUE) snprintf(humStr, sizeof(humStr), "ERR");
-      else snprintf(humStr, sizeof(humStr), "%d", (int)(hum + 0.5));
+      else snprintf(humStr, sizeof(humStr), "%d", (int)(hum + 0.5f));
 
       const char* mode = "OFF";
       if      (temp <= SENSOR_ERROR_VALUE) mode = "ERR";
@@ -210,22 +215,22 @@ class DisplayPanel {
                         float hum, float tgtHum) {
 #if defined(ARDUINO)
       char line2[22] = "No faults";
-      if      (temp > (tgtTemp + 1.0))            snprintf(line2, sizeof(line2), "Temperature HIGH");
-      else if (temp < (tgtTemp - 1.0))            snprintf(line2, sizeof(line2), "Temperature LOW");
-      else if (hum > (tgtHum + 2.0))              snprintf(line2, sizeof(line2), "Humidity HIGH");
-      else if (hum < (tgtHum - 2.0))              snprintf(line2, sizeof(line2), "Humidity LOW");
-      else if (people < 0 || people > _maxPeople) snprintf(line2, sizeof(line2), "Turnstile FAULT");
+      if      (temp > (tgtTemp + 1.0f))            snprintf(line2, sizeof(line2), "Temperature HIGH");
+      else if (temp < (tgtTemp - 1.0f))            snprintf(line2, sizeof(line2), "Temperature LOW");
+      else if (hum > (tgtHum + 2.0f))              snprintf(line2, sizeof(line2), "Humidity HIGH");
+      else if (hum < (tgtHum - 2.0f))              snprintf(line2, sizeof(line2), "Humidity LOW");
+      else if (people < 0 || people > _maxPeople)  snprintf(line2, sizeof(line2), "Turnstile FAULT");
 
       _display.setTextSize(1);
       _display.setCursor(0, 0);  _display.print("FAULT");
       _display.setCursor(0, 18); _display.print(line2);
 #else
       char line2[17] = "No faults";
-      if      (temp > (tgtTemp + 1.0))           snprintf(line2, sizeof(line2), "Temperature HIGH");
-      else if (temp < (tgtTemp - 1.0))           snprintf(line2, sizeof(line2), "Temperature LOW");
-      else if (hum > (tgtHum + 2.0))             snprintf(line2, sizeof(line2), "Humidity HIGH");
-      else if (hum < (tgtHum - 2.0))             snprintf(line2, sizeof(line2), "Humidity LOW");
-      else if (people < 0 || people > _maxPeople) snprintf(line2, sizeof(line2), "Turnstile FAULT");
+      if      (temp > (tgtTemp + 1.0f))            snprintf(line2, sizeof(line2), "Temperature HIGH");
+      else if (temp < (tgtTemp - 1.0f))            snprintf(line2, sizeof(line2), "Temperature LOW");
+      else if (hum > (tgtHum + 2.0f))              snprintf(line2, sizeof(line2), "Humidity HIGH");
+      else if (hum < (tgtHum - 2.0f))              snprintf(line2, sizeof(line2), "Humidity LOW");
+      else if (people < 0 || people > _maxPeople)  snprintf(line2, sizeof(line2), "Turnstile FAULT");
 
       _display.setCursor(0, 0); _display.print("FAULT");
       _display.setCursor(0, 1); _display.print(line2);
@@ -233,40 +238,42 @@ class DisplayPanel {
     }
 
   public:
-    DisplayPanel(int maxPeople)
+    explicit DisplayPanel(uint8_t maxPeople)
 #if defined(ARDUINO)
       : _display(),
 #else
       : _display(12, 13, A2, A3, A4, A5),
 #endif
-        _lastRefresh(0), _lastPageChange(0), _logoUntil(0), _page(0), _maxPeople(maxPeople) {
-      _baseYear   = atoi(__DATE__ + 7);
+        _lastRefresh(0), _lastPageChange(0), _logoUntil(0),
+        _page(0), _maxPeople(maxPeople) {
+      _baseYear   = static_cast<int16_t>(atoi(__DATE__ + 7));
       _baseMonth  = monthFromString(__DATE__);
-      _baseDay    = (byte)atoi(__DATE__ + 4);
-      _baseHour   = (byte)atoi(__TIME__);
-      _baseMinute = (byte)atoi(__TIME__ + 3);
-      _baseSecond = (byte)atoi(__TIME__ + 6);
+      _baseDay    = static_cast<uint8_t>(atoi(__DATE__ + 4));
+      _baseHour   = static_cast<uint8_t>(atoi(__TIME__));
+      _baseMinute = static_cast<uint8_t>(atoi(__TIME__ + 3));
+      _baseSecond = static_cast<uint8_t>(atoi(__TIME__ + 6));
     }
 
-    DisplayPanel(int rs, int en, int d4, int d5, int d6, int d7, int maxPeople)
+    DisplayPanel(int rs, int en, int d4, int d5, int d6, int d7, uint8_t maxPeople)
       : _display(rs, en, d4, d5, d6, d7),
-        _lastRefresh(0), _lastPageChange(0), _logoUntil(0), _page(0), _maxPeople(maxPeople) {
-      _baseYear   = atoi(__DATE__ + 7);
+        _lastRefresh(0), _lastPageChange(0), _logoUntil(0),
+        _page(0), _maxPeople(maxPeople) {
+      _baseYear   = static_cast<int16_t>(atoi(__DATE__ + 7));
       _baseMonth  = monthFromString(__DATE__);
-      _baseDay    = (byte)atoi(__DATE__ + 4);
-      _baseHour   = (byte)atoi(__TIME__);
-      _baseMinute = (byte)atoi(__TIME__ + 3);
-      _baseSecond = (byte)atoi(__TIME__ + 6);
+      _baseDay    = static_cast<uint8_t>(atoi(__DATE__ + 4));
+      _baseHour   = static_cast<uint8_t>(atoi(__TIME__));
+      _baseMinute = static_cast<uint8_t>(atoi(__TIME__ + 3));
+      _baseSecond = static_cast<uint8_t>(atoi(__TIME__ + 6));
     }
 
     void begin() {
 #if defined(ARDUINO)
       if (!_display.begin()) {
-        Serial.println("ERR: OLED init failed (check I2C wiring/address)");
+        Serial.println(F("ERR: OLED init failed (check I2C wiring/address)"));
         return;
       }
-      Serial.println("OK: OLED initialized");
-      Serial.print("OLED I2C addr: 0x");
+      Serial.println(F("OK: OLED initialized"));
+      Serial.print(F("OLED I2C addr: 0x"));
       Serial.println(_display.address(), HEX);
 
       _display.clear();
@@ -284,21 +291,35 @@ class DisplayPanel {
       _display.print("Pinacoteca OK");
       _display.setCursor(0, 1);
       _display.print("Display started");
-      delay(800);
-      _display.clear();
+
+      // Non-blocking splash: let the logo show for 800 ms
+      // by setting _logoUntil (same mechanism as the OLED branch).
+      _logoUntil = millis() + 800;
 #endif
     }
 
-    // Update the display (called every loop iteration)
+    /**
+     * @brief Update the display (called every loop iteration).
+     *
+     * Rotates through pages at 5-second intervals with a
+     * 1-second refresh rate. Skips rendering during the splash logo.
+     */
     void update(int currentPeople, Thermostat& thermostat,
                 HumidifierControl& humidifier, LightingControl& lighting) {
       unsigned long now = millis();
 
-#if defined(ARDUINO)
+      // Splash guard (both OLED and LCD)
       if (_logoUntil != 0 && now < _logoUntil) {
         return;
       }
+      if (_logoUntil != 0) {
+        // Splash just ended — clear and reset
+        _display.clear();
+#if defined(ARDUINO)
+        _display.display();
 #endif
+        _logoUntil = 0;
+      }
 
       if (now - _lastRefresh < 1000) return;
       _lastRefresh = now;
@@ -311,7 +332,7 @@ class DisplayPanel {
       int   targetLux   = lighting.getTargetLux();
 
       bool sensorError = hasSensorError(currentTemp, currentHum, currentLux);
-      byte pageCount = sensorError ? 4 : 3;
+      uint8_t pageCount = sensorError ? 4 : 3;
 
       _display.clear();
       if (_page >= pageCount) _page = 0;

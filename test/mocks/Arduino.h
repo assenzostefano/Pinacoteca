@@ -85,6 +85,18 @@ inline unsigned long pulseIn(int pin, int, unsigned long = 1000000UL) {
 #define constrain(x, a, b) ((x) < (a) ? (a) : ((x) > (b) ? (b) : (x)))
 #endif
 
+// F() macro — no-op on host (PROGMEM not available)
+#ifndef F
+#define F(s) (s)
+#endif
+
+#ifndef SDA
+#define SDA 18
+#endif
+#ifndef SCL
+#define SCL 19
+#endif
+
 class String {
 private:
     std::string _value;

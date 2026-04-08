@@ -1,6 +1,10 @@
-// led.h
-// GPIO output helpers for LEDs and digital actuators.
-// GpioOutput class + legacy compatible functions (led, ledDimming, ledRGB).
+/**
+ * @file led.h
+ * @brief GPIO output helpers for LEDs and digital actuators.
+ *
+ * Provides the GpioOutput class for managing digital/PWM pins,
+ * plus legacy-compatible free functions (led, ledDimming, ledRGB).
+ */
 
 #ifndef LED_H
 #define LED_H
@@ -8,49 +12,71 @@
 #include <Arduino.h>
 #include "../system/error_registry.h"
 
-// Class that manages a digital/PWM output pin
+/**
+ * @brief Manages a single digital/PWM output pin.
+ */
 class GpioOutput {
   private:
-    uint8_t _pin; // Pin number
+    uint8_t _pin;
 
   public:
-    // Constructor: pass the pin number
-    GpioOutput(uint8_t pin) : _pin(pin) {}
+    explicit GpioOutput(uint8_t pin) : _pin(pin) {}
 
-    // Initialize the pin as OUTPUT
     void begin() {
       pinMode(_pin, OUTPUT);
     }
 
-    // Write HIGH or LOW
+    /** @brief Write HIGH or LOW to the pin. */
     bool write(bool state) {
       digitalWrite(_pin, state ? HIGH : LOW);
       pinacotecaClearError(PIN_ERR_GPIO_IO);
       return true;
     }
 
-    // Write a PWM value (0-255)
-    bool writePwm(int value) {
-      value = constrain(value, 0, 255);
+    /** @brief Write a PWM value (0–255). */
+    bool writePwm(uint8_t value) {
       analogWrite(_pin, value);
       pinacotecaClearError(PIN_ERR_GPIO_IO);
       return true;
     }
 
-    // Write an RGB color by name ("BLUE", "RED", "GREEN", etc.)
+    /**
+     * @brief Set an RGB LED colour by name.
+     * @param colorName  One of: "BLUE","RED","GREEN","WHITE","YELLOW","OFF".
+     *
+     * Uses direct C-string comparison to avoid heap-allocating a String.
+     */
     bool writeRgb(const char* colorName) {
-      String name(colorName);
-      name.trim();
-      name.toUpperCase();
+      if (colorName == nullptr) {
+        pinacotecaSetError(PIN_ERR_GPIO_IO);
+        return false;
+      }
 
-      int color = 0;
-      if      (name == "BLUE")   color = 255;
-      else if (name == "RED")    color = 255 << 16;
-      else if (name == "GREEN")  color = 255 << 8;
-      else if (name == "WHITE")  color = (255 << 16) | (255 << 8) | 255;
-      else if (name == "YELLOW") color = (255 << 16) | (255 << 8);
-      else if (name == "OFF")    color = 0;
-      else {
+      // Skip leading whitespace
+      while (*colorName == ' ' || *colorName == '\t') ++colorName;
+
+      // Compare case-insensitively using a compact helper
+      auto ciEq = [](const char* a, const char* b) -> bool {
+        while (*a && *b) {
+          char ca = (*a >= 'a' && *a <= 'z') ? (*a - 32) : *a;
+          char cb = (*b >= 'a' && *b <= 'z') ? (*b - 32) : *b;
+          if (ca != cb) return false;
+          ++a; ++b;
+        }
+        // Skip trailing whitespace on 'a'
+        while (*a == ' ' || *a == '\t') ++a;
+        return (*a == '\0' && *b == '\0');
+      };
+
+      int color = -1;
+      if      (ciEq(colorName, "BLUE"))   color = 255;
+      else if (ciEq(colorName, "RED"))    color = 255 << 16;
+      else if (ciEq(colorName, "GREEN"))  color = 255 << 8;
+      else if (ciEq(colorName, "WHITE"))  color = (255 << 16) | (255 << 8) | 255;
+      else if (ciEq(colorName, "YELLOW")) color = (255 << 16) | (255 << 8);
+      else if (ciEq(colorName, "OFF"))    color = 0;
+
+      if (color < 0) {
         pinacotecaSetError(PIN_ERR_GPIO_IO);
         return false;
       }
@@ -60,42 +86,29 @@ class GpioOutput {
       return true;
     }
 
-    // Return the pin number
     uint8_t pin() const { return _pin; }
 };
 
-// --- Legacy compatible functions ---
+// ── Legacy compatible free functions ────────────────────────────
 
-// Turn a digital LED on/off
-inline bool led(int pin, bool state) {
-  if (pin < 0) {
-    pinacotecaSetError(PIN_ERR_GPIO_IO);
-    return false;
-  }
+/** @brief Turn a digital LED on/off (legacy wrapper). */
+inline bool led(uint8_t pin, bool state) {
   digitalWrite(pin, state);
   pinacotecaClearError(PIN_ERR_GPIO_IO);
   return true;
 }
 
-// Set a PWM value on an LED (dimming)
-inline bool ledDimming(int pin, int pwmValue) {
-  if (pin < 0) {
-    pinacotecaSetError(PIN_ERR_GPIO_IO);
-    return false;
-  }
+/** @brief Set a PWM value on an LED (legacy wrapper). */
+inline bool ledDimming(uint8_t pin, int pwmValue) {
   pwmValue = constrain(pwmValue, 0, 255);
   analogWrite(pin, pwmValue);
   pinacotecaClearError(PIN_ERR_GPIO_IO);
   return true;
 }
 
-// Set a color on an RGB LED
-inline bool ledRGB(int pin, const char* colorName) {
-  if (pin < 0) {
-    pinacotecaSetError(PIN_ERR_GPIO_IO);
-    return false;
-  }
-  GpioOutput out(static_cast<uint8_t>(pin));
+/** @brief Set a colour on an RGB LED (legacy wrapper). */
+inline bool ledRGB(uint8_t pin, const char* colorName) {
+  GpioOutput out(pin);
   return out.writeRgb(colorName);
 }
 

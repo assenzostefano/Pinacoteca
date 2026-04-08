@@ -1,7 +1,11 @@
-// turnstile.h
-// Gallery entry turnstile with ultrasonic people counting.
-// Uses two HC-SR04 sensors (IN/OUT) to count people entering and leaving,
-// and drives a servo gate.
+/**
+ * @file turnstile.h
+ * @brief Gallery entry turnstile with ultrasonic people counting.
+ *
+ * Uses two HC-SR04 sensors (IN/OUT) on shared TRIG/ECHO pins
+ * to count people entering and leaving the gallery.
+ * Drives a servo gate that opens for a configurable time window.
+ */
 
 #ifndef TURNSTILE_H
 #define TURNSTILE_H
@@ -20,13 +24,13 @@ class Turnstile {
     bool _lastInDetected;
     bool _lastOutDetected;
     unsigned long _closeAtMillis;
-    unsigned int _openTimeMs;
+    uint16_t _openTimeMs;
     float _triggerDistanceCm;
 
-    // Ultrasonic pulse timeout in microseconds (~4.3 m range)
-    static const unsigned long ULTRASONIC_TIMEOUT = 25000;
+    /// Ultrasonic pulse timeout in microseconds (~4.3 m range)
+    static constexpr unsigned long ULTRASONIC_TIMEOUT = 25000UL;
 
-    // Move the servo by a relative angle
+    /// Move the servo by a relative angle
     bool moveServo(int angle) {
       if (!antiSufferingServo(angle, *_servo)) {
         pinacotecaSetError(PIN_ERR_SERVO);
@@ -36,12 +40,16 @@ class Turnstile {
       return true;
     }
 
-    // Check if a person was detected at the given distance
+    /// Check if a person was detected at the given distance
     bool isPersonDetected(float distanceCm) const {
-      return distanceCm > 0.0 && distanceCm <= _triggerDistanceCm;
+      return distanceCm > 0.0f && distanceCm <= _triggerDistanceCm;
     }
 
-    // Measure distance with a single-pin HC-SR04 sensor (shared TRIG/ECHO)
+    /**
+     * @brief Measure distance with a single-pin HC-SR04 sensor.
+     * @param sensorPin  Shared TRIG/ECHO pin.
+     * @return Distance in cm, or -1.0 on timeout.
+     */
     float readDistanceCm(uint8_t sensorPin) {
       pinMode(sensorPin, OUTPUT);
       digitalWrite(sensorPin, LOW);
@@ -53,16 +61,16 @@ class Turnstile {
       pinMode(sensorPin, INPUT);
       unsigned long duration = pulseIn(sensorPin, HIGH, ULTRASONIC_TIMEOUT);
 
-      if (duration == 0) return -1.0;
-      return (duration * 0.0343) / 2.0;
+      if (duration == 0) return -1.0f;
+      return (duration * 0.0343f) / 2.0f;
     }
 
   public:
-    Turnstile(int inSensorPin, int outSensorPin,
-              int maxPeople, float triggerDistanceCm = 25.0)
-      : _inSensorPin(static_cast<uint8_t>(inSensorPin)),
-        _outSensorPin(static_cast<uint8_t>(outSensorPin)),
-        _maxPeople(static_cast<uint8_t>(constrain(maxPeople, 0, 255))),
+    Turnstile(uint8_t inSensorPin, uint8_t outSensorPin,
+              uint8_t maxPeople, float triggerDistanceCm = 25.0f)
+      : _inSensorPin(inSensorPin),
+        _outSensorPin(outSensorPin),
+        _maxPeople(maxPeople),
         _currentPeople(0),
         _servo(nullptr),
         _isGateOpen(false),
@@ -70,7 +78,7 @@ class Turnstile {
         _lastOutDetected(false),
         _closeAtMillis(0),
         _openTimeMs(700),
-        _triggerDistanceCm(triggerDistanceCm > 0.0 ? triggerDistanceCm : 25.0) {}
+        _triggerDistanceCm(triggerDistanceCm > 0.0f ? triggerDistanceCm : 25.0f) {}
 
     void begin(Servo* servo) {
       _servo = servo;
@@ -84,7 +92,7 @@ class Turnstile {
       }
     }
 
-    // Run one sensing + gate cycle
+    /** @brief Run one sensing + gate cycle (non-blocking). */
     void update() {
       if (!_servo) {
         pinacotecaSetError(PIN_ERR_TURNSTILE);
@@ -142,11 +150,11 @@ class Turnstile {
       pinacotecaClearError(PIN_ERR_TURNSTILE);
     }
 
-    int getPeopleCount() const { return _currentPeople; }
-    int getMaxPeople() const { return _maxPeople; }
+    uint8_t getPeopleCount() const { return _currentPeople; }
+    uint8_t getMaxPeople() const { return _maxPeople; }
 
-    void setPeopleCount(int people) {
-      _currentPeople = static_cast<uint8_t>(constrain(people, 0, _maxPeople));
+    void setPeopleCount(uint8_t people) {
+      _currentPeople = (people > _maxPeople) ? _maxPeople : people;
     }
 };
 

@@ -1,7 +1,11 @@
-// bluetooth_link.h
-// Concrete Bluetooth transport.
-// Uses native BLE when ArduinoBLE is available (UNO R4 WiFi),
-// with a Serial1 fallback for classic external modules.
+/**
+ * @file bluetooth_link.h
+ * @brief Concrete Bluetooth transport (zero-allocation).
+ *
+ * Uses native BLE when ArduinoBLE is available (UNO R4 WiFi),
+ * with a Serial1 fallback for classic external modules (HC-05/06).
+ * All internal buffers are stack-allocated char arrays.
+ */
 
 #ifndef BLUETOOTH_LINK_H
 #define BLUETOOTH_LINK_H
@@ -25,7 +29,6 @@
 class BluetoothLink : public BluetoothConnection {
   private:
 #if PINACOTECA_HAS_NATIVE_BLE
-    static const int MAX_MESSAGE_SIZE = 96;
     BLEService _service;
     BLEStringCharacteristic _rxCharacteristic;
     BLEStringCharacteristic _txCharacteristic;
@@ -38,43 +41,57 @@ class BluetoothLink : public BluetoothConnection {
     unsigned long _baudRate;
     bool _started;
 
+    // Fixed-size receive & pending buffers (no heap)
 #if !PINACOTECA_HAS_NATIVE_BLE
-    String _rxBuffer;
+    char _rxBuffer[BT_MSG_MAX];
+    uint8_t _rxLen;
 #endif
-    String _pendingMessage;
+    char _pendingMessage[BT_MSG_MAX];
+    uint8_t _pendingLen;
 
   public:
 #if PINACOTECA_HAS_NATIVE_BLE
     explicit BluetoothLink(unsigned long baudRate = 9600)
       : _service("19B10000-E8F2-537E-4F6C-D104768A1214"),
-        _rxCharacteristic("19B10001-E8F2-537E-4F6C-D104768A1214", BLEWrite | BLEWriteWithoutResponse, MAX_MESSAGE_SIZE),
-        _txCharacteristic("19B10002-E8F2-537E-4F6C-D104768A1214", BLENotify | BLERead, MAX_MESSAGE_SIZE),
+        _rxCharacteristic("19B10001-E8F2-537E-4F6C-D104768A1214",
+                          BLEWrite | BLEWriteWithoutResponse, BT_MSG_MAX),
+        _txCharacteristic("19B10002-E8F2-537E-4F6C-D104768A1214",
+                          BLENotify | BLERead, BT_MSG_MAX),
         _connected(false),
         _baudRate(baudRate),
         _started(false),
-        _pendingMessage("") {}
+        _pendingLen(0) {
+      _pendingMessage[0] = '\0';
+    }
 #elif PINACOTECA_HAS_BLUETOOTH_SERIAL1
-    explicit BluetoothLink(unsigned long baudRate = 9600, HardwareSerial& serialPort = Serial1)
+    explicit BluetoothLink(unsigned long baudRate = 9600,
+                           HardwareSerial& serialPort = Serial1)
       : _serial(serialPort),
         _baudRate(baudRate),
         _started(false),
-        _rxBuffer(""),
-        _pendingMessage("") {}
+        _rxLen(0),
+        _pendingLen(0) {
+      _rxBuffer[0] = '\0';
+      _pendingMessage[0] = '\0';
+    }
 #else
     explicit BluetoothLink(unsigned long baudRate = 9600)
       : _baudRate(baudRate),
         _started(false),
-        _rxBuffer(""),
-        _pendingMessage("") {}
+        _rxLen(0),
+        _pendingLen(0) {
+      _rxBuffer[0] = '\0';
+      _pendingMessage[0] = '\0';
+    }
 #endif
 
     bool begin() override {
 #if PINACOTECA_HAS_NATIVE_BLE
-      Serial.println("BT:BLE:NATIVE");
+      Serial.println(F("BT:BLE:NATIVE"));
       if (!BLE.begin()) {
         _started = false;
         _connected = false;
-        Serial.println("ERR:BLE:BEGIN");
+        Serial.println(F("ERR:BLE:BEGIN"));
         return false;
       }
 
@@ -89,19 +106,22 @@ class BluetoothLink : public BluetoothConnection {
       _txCharacteristic.writeValue("READY");
       BLE.advertise();
 
-      _pendingMessage = "";
+      _pendingMessage[0] = '\0';
+      _pendingLen = 0;
       _started = true;
       _connected = false;
       return true;
 #elif PINACOTECA_HAS_BLUETOOTH_SERIAL1
-      Serial.println("BT:SERIAL:FALLBACK");
+      Serial.println(F("BT:SERIAL:FALLBACK"));
       _serial.begin(_baudRate);
       _started = true;
-      _rxBuffer = "";
-      _pendingMessage = "";
+      _rxBuffer[0] = '\0';
+      _rxLen = 0;
+      _pendingMessage[0] = '\0';
+      _pendingLen = 0;
       return true;
 #else
-      Serial.println("ERR:BT:UNAVAILABLE");
+      Serial.println(F("ERR:BT:UNAVAILABLE"));
       (void)_baudRate;
       _started = false;
       return false;
@@ -116,24 +136,27 @@ class BluetoothLink : public BluetoothConnection {
 #endif
     }
 
-    bool readMessage(String& message) override {
-      if (_pendingMessage.length() == 0) return false;
-      message = _pendingMessage;
-      _pendingMessage = "";
+    bool readMessage(char* buf, uint8_t maxLen) override {
+      if (_pendingLen == 0) return false;
+      uint8_t copyLen = (_pendingLen < maxLen - 1) ? _pendingLen : (maxLen - 1);
+      memcpy(buf, _pendingMessage, copyLen);
+      buf[copyLen] = '\0';
+      _pendingMessage[0] = '\0';
+      _pendingLen = 0;
       return true;
     }
 
-    void sendMessage(const String& message) override {
+    void sendMessage(const char* msg) override {
 #if PINACOTECA_HAS_NATIVE_BLE
       if (_started && _connected) {
-        _txCharacteristic.writeValue(message);
+        _txCharacteristic.writeValue(msg);
       }
 #elif PINACOTECA_HAS_BLUETOOTH_SERIAL1
       if (_started) {
-        _serial.println(message);
+        _serial.println(msg);
       }
 #else
-      (void)message;
+      (void)msg;
 #endif
     }
 
@@ -147,8 +170,12 @@ class BluetoothLink : public BluetoothConnection {
       if (_rxCharacteristic.written()) {
         String message = _rxCharacteristic.value();
         message.trim();
-        if (message.length() > 0) {
-          _pendingMessage = message;
+        uint8_t len = (message.length() < BT_MSG_MAX - 1)
+                        ? message.length() : (BT_MSG_MAX - 1);
+        if (len > 0) {
+          memcpy(_pendingMessage, message.c_str(), len);
+          _pendingMessage[len] = '\0';
+          _pendingLen = len;
         }
       }
 
@@ -162,16 +189,18 @@ class BluetoothLink : public BluetoothConnection {
         char c = static_cast<char>(_serial.read());
 
         if (c == '\n' || c == '\r') {
-          if (_rxBuffer.length() > 0) {
-            _pendingMessage = _rxBuffer;
-            _rxBuffer = "";
+          if (_rxLen > 0) {
+            _rxBuffer[_rxLen] = '\0';
+            memcpy(_pendingMessage, _rxBuffer, _rxLen + 1);
+            _pendingLen = _rxLen;
+            _rxLen = 0;
             break;
           }
           continue;
         }
 
-        if (_rxBuffer.length() < 95) {
-          _rxBuffer += c;
+        if (_rxLen < BT_MSG_MAX - 2) {
+          _rxBuffer[_rxLen++] = c;
         }
       }
 #endif

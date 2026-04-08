@@ -1,8 +1,11 @@
-// Pinacoteca.ino
-// Main sketch for the Pinacoteca gallery management system.
-// Manages: turnstile entry, climate control (temperature + humidity),
-// gallery lighting, small OLED status display, and an optional
-// Bluetooth remote-control gateway for App Inventor style text commands.
+/**
+ * @file Pinacoteca.ino
+ * @brief Main sketch for the Pinacoteca gallery management system.
+ *
+ * Manages: turnstile entry, climate control (temperature + humidity),
+ * gallery lighting, small OLED status display, and an optional
+ * Bluetooth remote-control gateway for App Inventor style commands.
+ */
 
 #include <Servo.h>
 
@@ -27,36 +30,30 @@
 #include "lib/bluetooth/remote_gateway.h"
 #endif
 
-// --- Bluetooth settings (serial fallback only) ---
-#define PINACOTECA_BLUETOOTH_BAUD 9600
+// ── Pin assignments ──────────────────────────────────────────────
+constexpr uint8_t PIN_SERVOMOTOR       = 3;
+constexpr uint8_t PIN_GREEN_LIGHT      = 4;
+constexpr uint8_t PIN_RED_LIGHT        = 5;
+constexpr uint8_t PIN_IN_ULTRASONIC    = 6;
+constexpr uint8_t PIN_OUT_ULTRASONIC   = 7;
+constexpr uint8_t PIN_COOLING_RGB_BLUE = 8;   // Cooling (digital)
+constexpr uint8_t PIN_YELLOW_LIGHT     = 9;   // Heating
+constexpr uint8_t PIN_CEILING_LIGHTS   = 10;  // Gallery ceiling lights (PWM)
+constexpr uint8_t PIN_HUMIDIFIER_LED   = 11;
 
-// --- Pin assignments ---
-const int PIN_SERVOMOTOR       = 3;
-const int PIN_GREEN_LIGHT      = 4;
-const int PIN_RED_LIGHT        = 5;
-const int PIN_IN_ULTRASONIC    = 6;
-const int PIN_OUT_ULTRASONIC   = 7;
-const int PIN_COOLING_RGB_BLUE = 8;   // Cooling (digital)
-const int PIN_YELLOW_LIGHT     = 9;   // Heating
-const int PIN_CEILING_LIGHTS   = 10;  // Gallery ceiling lights (PWM)
-const int PIN_HUMIDIFIER_LED   = 11;
+constexpr uint8_t PIN_TEMPERATURE_SENSOR = A0;
+constexpr uint8_t PIN_PHOTORESISTOR      = A1;
 
-const int PIN_TEMPERATURE_SENSOR = A0;
-const int PIN_PHOTORESISTOR      = A1;
+// ── System parameters ────────────────────────────────────────────
+constexpr uint8_t       MAX_PEOPLE          = 5;
+constexpr float         TURNSTILE_MIN_CM    = 25.0f;
+constexpr float         TARGET_TEMP_C       = 20.0f;
+constexpr uint16_t      TARGET_LUX          = 200;
+constexpr float         TARGET_HUMIDITY     = 65.0f;
+constexpr unsigned long THERMOSTAT_PAUSE_MS = 60000UL;
 
-// OLED SSD1306 (I2C)
-const int PIN_OLED_SDA = SDA;
-const int PIN_OLED_SCL = SCL;
-
-// --- Global objects ---
+// ── Global objects ───────────────────────────────────────────────
 Servo myServo;
-
-const int           MAX_PEOPLE          = 5;
-const float         TURNSTILE_MIN_CM    = 25.0;
-const float         TARGET_TEMP_C       = 20.0;
-const int           TARGET_LUX          = 200;
-const float         TARGET_HUMIDITY     = 65.0;
-const unsigned long THERMOSTAT_PAUSE_MS = 60000; // 60 seconds for real deployment
 
 Turnstile         entranceTurnstile(PIN_IN_ULTRASONIC, PIN_OUT_ULTRASONIC,
                                     MAX_PEOPLE, TURNSTILE_MIN_CM);
@@ -68,8 +65,10 @@ LightingControl   galleryLighting(PIN_PHOTORESISTOR, PIN_CEILING_LIGHTS, TARGET_
 HumidifierControl galleryHumidifier(PIN_HUMIDIFIER_LED, TARGET_HUMIDITY);
 DisplayPanel      galleryDisplay(MAX_PEOPLE);
 
-// --- Remote channel ---
+// ── Remote channel (Bluetooth) ──────────────────────────────────
 #if PINACOTECA_REMOTE_ENABLED
+constexpr unsigned long PINACOTECA_BLUETOOTH_BAUD = 9600UL;
+
 BluetoothLink bluetoothConnection(PINACOTECA_BLUETOOTH_BAUD);
 
 RemoteControlGateway remoteGateway(
@@ -99,15 +98,10 @@ void updateRemoteChannel()   {}
 
 #endif
 
-// --- Setup and Loop ---
+// ── Setup & Loop ─────────────────────────────────────────────────
 
 void setup() {
   Serial.begin(9600);
-
-  Serial.print("OLED SDA pin: ");
-  Serial.println(PIN_OLED_SDA);
-  Serial.print("OLED SCL pin: ");
-  Serial.println(PIN_OLED_SCL);
 
   myServo.attach(PIN_SERVOMOTOR);
   myServo.write(0);
@@ -123,31 +117,18 @@ void setup() {
 }
 
 void loop() {
-  bool manualBypass = isManualBypassEnabled();
+  const bool manualBypass = isManualBypassEnabled();
 
   if (!manualBypass) {
-    // Turnstile
     entranceTurnstile.update();
-
-    int currentPeople = entranceTurnstile.getPeopleCount();
-    trafficLight.update(currentPeople, MAX_PEOPLE);
-
-    // Climate
+    trafficLight.update(entranceTurnstile.getPeopleCount(), MAX_PEOPLE);
     mainThermostat.update();
-
-    // Lighting
     galleryLighting.update();
-
-    // Humidity
     galleryHumidifier.update();
   }
 
-  int currentPeople = entranceTurnstile.getPeopleCount();
+  galleryDisplay.update(entranceTurnstile.getPeopleCount(),
+                        mainThermostat, galleryHumidifier, galleryLighting);
 
-  // OLED display
-  galleryDisplay.update(currentPeople, mainThermostat,
-                        galleryHumidifier, galleryLighting);
-
-  // Remote channel (Bluetooth)
   updateRemoteChannel();
 }

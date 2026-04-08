@@ -1,7 +1,11 @@
-// command_processor.h
-// Text-based command parser and executor.
-// Accepts SET/GET/ACT/SERVO commands via serial or Bluetooth
-// and translates them into actions on the Pinacoteca subsystems.
+/**
+ * @file command_processor.h
+ * @brief Text-based command parser and executor (zero heap allocation).
+ *
+ * Accepts SET/GET/ACT/SERVO commands via serial or Bluetooth
+ * and translates them into actions on the Pinacoteca subsystems.
+ * All parsing uses fixed-size stack buffers.
+ */
 
 #ifndef COMMAND_PROCESSOR_H
 #define COMMAND_PROCESSOR_H
@@ -11,6 +15,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "../servomotor/turnstile.h"
 #include "../servomotor/servomotor.h"
@@ -27,32 +32,54 @@ class CommandProcessor {
     Turnstile* _turnstile;
     Servo* _servo;
 
-    int _greenPin;
-    int _redPin;
-    int _heatingPin;
-    int _coolingPin;
-    int _humidifierPin;
-    int _ceilingLightsPin;
+    uint8_t _greenPin;
+    uint8_t _redPin;
+    uint8_t _heatingPin;
+    uint8_t _coolingPin;
+    uint8_t _humidifierPin;
+    uint8_t _ceilingLightsPin;
 
     bool _manualBypass;
 
-    // Drive an LED only if manual mode is active.
-    String manualLed(int pin, bool state, const char* okResponse) {
-      if (!_manualBypass) return "ERR:MODE";
+    /// Maximum response buffer size
+    static constexpr uint8_t RESP_MAX = 128;
+
+    /// Drive an LED only if manual mode is active.
+    void manualLed(uint8_t pin, bool state, const char* okResponse, char* out) {
+      if (!_manualBypass) { strcpy(out, "ERR:MODE"); return; }
       led(pin, state);
-      return okResponse;
+      strcpy(out, okResponse);
     }
 
-    // Move the servo to an absolute angle.
+    /// Move the servo to an absolute angle.
     void moveServoAbsolute(int target) {
       if (_servo == nullptr) return;
       int delta = target - _servo->read();
       antiSufferingServo(delta, *_servo);
     }
 
-    // Strict integer parser (rejects trailing garbage).
-    static bool parseInt(const String& raw, int& out) {
-      const char* s = raw.c_str();
+    /// In-place uppercase + trim for a C-string.
+    static void normalizeInPlace(char* s) {
+      // Trim leading whitespace
+      char* src = s;
+      while (*src == ' ' || *src == '\t') ++src;
+
+      // Uppercase + copy forward
+      char* dst = s;
+      while (*src) {
+        *dst++ = static_cast<char>(toupper(static_cast<unsigned char>(*src++)));
+      }
+      *dst = '\0';
+
+      // Trim trailing whitespace
+      while (dst > s && (*(dst - 1) == ' ' || *(dst - 1) == '\t')) {
+        --dst;
+        *dst = '\0';
+      }
+    }
+
+    /// Strict integer parser (rejects trailing garbage).
+    static bool parseInt(const char* s, int& out) {
       if (s == nullptr || s[0] == '\0') return false;
       char* end = nullptr;
       long v = strtol(s, &end, 10);
@@ -62,21 +89,25 @@ class CommandProcessor {
       return true;
     }
 
-    // Strict float parser (digits and optional decimal point only).
-    static bool parseFloat(const String& raw, float& out) {
-      const char* s = raw.c_str();
+    /// Strict float parser (digits and optional decimal point only).
+    static bool parseFloat(const char* s, float& out) {
       if (s == nullptr || s[0] == '\0') return false;
 
-      size_t i = 0;
-      if (s[i] == '+' || s[i] == '-') i++;
+      const char* p = s;
+      if (*p == '+' || *p == '-') p++;
 
       bool hasDigit = false;
-      while (s[i] && isdigit(static_cast<unsigned char>(s[i]))) { hasDigit = true; i++; }
-      if (s[i] == '.') { i++; while (s[i] && isdigit(static_cast<unsigned char>(s[i]))) { hasDigit = true; i++; } }
-      if (!hasDigit || s[i] != '\0') return false;
+      while (*p && isdigit(static_cast<unsigned char>(*p))) { hasDigit = true; p++; }
+      if (*p == '.') { p++; while (*p && isdigit(static_cast<unsigned char>(*p))) { hasDigit = true; p++; } }
+      if (!hasDigit || *p != '\0') return false;
 
-      out = raw.toFloat();
+      out = static_cast<float>(atof(s));
       return true;
+    }
+
+    /// Check if str starts with prefix
+    static bool startsWith(const char* str, const char* prefix) {
+      return strncmp(str, prefix, strlen(prefix)) == 0;
     }
 
   public:
@@ -86,9 +117,9 @@ class CommandProcessor {
         LightingControl* lighting,
         Turnstile* turnstile,
         Servo* servo,
-        int greenPin, int redPin,
-        int heatingPin, int coolingPin,
-        int humidifierPin, int ceilingLightsPin)
+        uint8_t greenPin, uint8_t redPin,
+        uint8_t heatingPin, uint8_t coolingPin,
+        uint8_t humidifierPin, uint8_t ceilingLightsPin)
       : _thermostat(thermostat),
         _humidifier(humidifier),
         _lighting(lighting),
@@ -104,8 +135,12 @@ class CommandProcessor {
 
     bool isManualBypassEnabled() const { return _manualBypass; }
 
-    // Build the full state payload string.
-    String buildStatePayload() const {
+    /**
+     * @brief Build the full state payload string into @p buf.
+     * @param buf     Destination buffer (at least RESP_MAX bytes).
+     * @param bufSize Size of @p buf.
+     */
+    void buildStatePayload(char* buf, uint8_t bufSize) const {
       char t[12], h[12], l[12], tt[12], th[12];
 
       dtostrf(_thermostat->getCurrentTemperature(), 0, 1, t);
@@ -117,96 +152,98 @@ class CommandProcessor {
       int servoAngle = (_servo != nullptr) ? _servo->read() : -1;
       const char* mode = _manualBypass ? "MANUAL" : "AUTO";
 
-      char payload[128];
-      snprintf(payload, sizeof(payload),
+      snprintf(buf, bufSize,
                "STATE:T=%s;H=%s;L=%s;P=%d;S=%d;M=%s;TT=%s;TH=%s;TL=%d",
                t, h, l,
                _turnstile->getPeopleCount(),
                servoAngle, mode, tt, th,
                _lighting->getTargetLux());
-
-      return String(payload);
     }
 
-    // Process a text command and return the response.
-    String processCommand(String command) {
-      command.trim();
-      command.toUpperCase();
+    /**
+     * @brief Process a text command and write the response into @p out.
+     * @param command  Mutable command buffer (will be normalised in-place).
+     * @param out      Response buffer (at least RESP_MAX bytes).
+     */
+    void processCommand(char* command, char* out) {
+      normalizeInPlace(command);
 
-      if (command.length() == 0) return "ERR:EMPTY";
+      if (command[0] == '\0') { strcpy(out, "ERR:EMPTY"); return; }
 
-      // Informational commands.
-      if (command == "PING")      return "PONG";
-      if (command == "VER")       return "VER:1";
-      if (command == "GET:STATE") return buildStatePayload();
-      if (command == "GET:MODE")  return _manualBypass ? "MODE:MANUAL" : "MODE:AUTO";
-
-      // Mode switching.
-      if (command == "MANUAL:ON")  { _manualBypass = true;  return "OK:MANUAL:ON"; }
-      if (command == "MANUAL:OFF") { _manualBypass = false; return "OK:MANUAL:OFF"; }
-
-      // Setpoint commands.
-      if (command.startsWith("SET:TEMP:")) {
-        float v; if (!parseFloat(command.substring(9), v)) return "ERR:FORMAT:TEMP";
-        if (v < 15.0 || v > 30.0) return "ERR:RANGE:TEMP";
-        _thermostat->setTargetTemperature(v); return "OK:TEMP";
-      }
-      if (command.startsWith("SET:HUM:")) {
-        float v; if (!parseFloat(command.substring(8), v)) return "ERR:FORMAT:HUM";
-        if (v < 40.0 || v > 80.0) return "ERR:RANGE:HUM";
-        _humidifier->setTargetHumidity(v); return "OK:HUM";
-      }
-      if (command.startsWith("SET:LUX:")) {
-        int v; if (!parseInt(command.substring(8), v)) return "ERR:FORMAT:LUX";
-        if (v < 50 || v > 1200) return "ERR:RANGE:LUX";
-        _lighting->setTargetLux(v); return "OK:LUX";
-      }
-      if (command.startsWith("SET:PEOPLE:")) {
-        int v; if (!parseInt(command.substring(11), v)) return "ERR:FORMAT:PEOPLE";
-        if (v < 0 || v > _turnstile->getMaxPeople()) return "ERR:RANGE:PEOPLE";
-        _turnstile->setPeopleCount(v); return "OK:PEOPLE";
+      // Informational commands
+      if (strcmp(command, "PING") == 0)      { strcpy(out, "PONG"); return; }
+      if (strcmp(command, "VER") == 0)       { strcpy(out, "VER:1"); return; }
+      if (strcmp(command, "GET:STATE") == 0) { buildStatePayload(out, RESP_MAX); return; }
+      if (strcmp(command, "GET:MODE") == 0) {
+        strcpy(out, _manualBypass ? "MODE:MANUAL" : "MODE:AUTO"); return;
       }
 
-      // Servo commands (manual mode only).
-      if (command == "SERVO:OPEN") {
-        if (!_manualBypass) return "ERR:MODE";
-        if (_servo == nullptr) return "ERR:SERVO";
-        moveServoAbsolute(90); return "OK:SERVO:OPEN";
+      // Mode switching
+      if (strcmp(command, "MANUAL:ON") == 0)  { _manualBypass = true;  strcpy(out, "OK:MANUAL:ON");  return; }
+      if (strcmp(command, "MANUAL:OFF") == 0) { _manualBypass = false; strcpy(out, "OK:MANUAL:OFF"); return; }
+
+      // Setpoint commands
+      if (startsWith(command, "SET:TEMP:")) {
+        float v; if (!parseFloat(command + 9, v)) { strcpy(out, "ERR:FORMAT:TEMP"); return; }
+        if (v < 15.0f || v > 30.0f) { strcpy(out, "ERR:RANGE:TEMP"); return; }
+        _thermostat->setTargetTemperature(v); strcpy(out, "OK:TEMP"); return;
       }
-      if (command == "SERVO:CLOSE") {
-        if (!_manualBypass) return "ERR:MODE";
-        if (_servo == nullptr) return "ERR:SERVO";
-        moveServoAbsolute(0); return "OK:SERVO:CLOSE";
+      if (startsWith(command, "SET:HUM:")) {
+        float v; if (!parseFloat(command + 8, v)) { strcpy(out, "ERR:FORMAT:HUM"); return; }
+        if (v < 40.0f || v > 80.0f) { strcpy(out, "ERR:RANGE:HUM"); return; }
+        _humidifier->setTargetHumidity(v); strcpy(out, "OK:HUM"); return;
       }
-      if (command.startsWith("SERVO:ANGLE:")) {
-        if (!_manualBypass) return "ERR:MODE";
-        if (_servo == nullptr) return "ERR:SERVO";
-        int a; if (!parseInt(command.substring(12), a)) return "ERR:FORMAT:SERVO";
-        if (a < 0 || a > 180) return "ERR:RANGE:SERVO";
-        moveServoAbsolute(a); return "OK:SERVO:ANGLE";
+      if (startsWith(command, "SET:LUX:")) {
+        int v; if (!parseInt(command + 8, v)) { strcpy(out, "ERR:FORMAT:LUX"); return; }
+        if (v < 50 || v > 1200) { strcpy(out, "ERR:RANGE:LUX"); return; }
+        _lighting->setTargetLux(v); strcpy(out, "OK:LUX"); return;
+      }
+      if (startsWith(command, "SET:PEOPLE:")) {
+        int v; if (!parseInt(command + 11, v)) { strcpy(out, "ERR:FORMAT:PEOPLE"); return; }
+        if (v < 0 || v > _turnstile->getMaxPeople()) { strcpy(out, "ERR:RANGE:PEOPLE"); return; }
+        _turnstile->setPeopleCount(static_cast<uint8_t>(v)); strcpy(out, "OK:PEOPLE"); return;
       }
 
-      // Actuator commands (manual mode only).
-      if (command == "ACT:GREEN:ON")       return manualLed(_greenPin, HIGH, "OK:GREEN:ON");
-      if (command == "ACT:GREEN:OFF")      return manualLed(_greenPin, LOW, "OK:GREEN:OFF");
-      if (command == "ACT:RED:ON")         return manualLed(_redPin, HIGH, "OK:RED:ON");
-      if (command == "ACT:RED:OFF")        return manualLed(_redPin, LOW, "OK:RED:OFF");
-      if (command == "ACT:HEAT:ON")        return manualLed(_heatingPin, HIGH, "OK:HEAT:ON");
-      if (command == "ACT:HEAT:OFF")       return manualLed(_heatingPin, LOW, "OK:HEAT:OFF");
-      if (command == "ACT:COOL:ON")        return manualLed(_coolingPin, HIGH, "OK:COOL:ON");
-      if (command == "ACT:COOL:OFF")       return manualLed(_coolingPin, LOW, "OK:COOL:OFF");
-      if (command == "ACT:HUMIDIFIER:ON")  return manualLed(_humidifierPin, HIGH, "OK:HUMIDIFIER:ON");
-      if (command == "ACT:HUMIDIFIER:OFF") return manualLed(_humidifierPin, LOW, "OK:HUMIDIFIER:OFF");
+      // Servo commands (manual mode only)
+      if (strcmp(command, "SERVO:OPEN") == 0) {
+        if (!_manualBypass) { strcpy(out, "ERR:MODE"); return; }
+        if (_servo == nullptr) { strcpy(out, "ERR:SERVO"); return; }
+        moveServoAbsolute(90); strcpy(out, "OK:SERVO:OPEN"); return;
+      }
+      if (strcmp(command, "SERVO:CLOSE") == 0) {
+        if (!_manualBypass) { strcpy(out, "ERR:MODE"); return; }
+        if (_servo == nullptr) { strcpy(out, "ERR:SERVO"); return; }
+        moveServoAbsolute(0); strcpy(out, "OK:SERVO:CLOSE"); return;
+      }
+      if (startsWith(command, "SERVO:ANGLE:")) {
+        if (!_manualBypass) { strcpy(out, "ERR:MODE"); return; }
+        if (_servo == nullptr) { strcpy(out, "ERR:SERVO"); return; }
+        int a; if (!parseInt(command + 12, a)) { strcpy(out, "ERR:FORMAT:SERVO"); return; }
+        if (a < 0 || a > 180) { strcpy(out, "ERR:RANGE:SERVO"); return; }
+        moveServoAbsolute(a); strcpy(out, "OK:SERVO:ANGLE"); return;
+      }
 
-      if (command.startsWith("ACT:PLAFONIERE:PWM:")) {
-        if (!_manualBypass) return "ERR:MODE";
-        int p; if (!parseInt(command.substring(19), p)) return "ERR:FORMAT:PWM";
-        if (p < 0 || p > 255) return "ERR:RANGE:PWM";
+      // Actuator commands (manual mode only)
+      if (strcmp(command, "ACT:GREEN:ON") == 0)       { manualLed(_greenPin, HIGH, "OK:GREEN:ON", out); return; }
+      if (strcmp(command, "ACT:GREEN:OFF") == 0)      { manualLed(_greenPin, LOW, "OK:GREEN:OFF", out); return; }
+      if (strcmp(command, "ACT:RED:ON") == 0)         { manualLed(_redPin, HIGH, "OK:RED:ON", out); return; }
+      if (strcmp(command, "ACT:RED:OFF") == 0)        { manualLed(_redPin, LOW, "OK:RED:OFF", out); return; }
+      if (strcmp(command, "ACT:HEAT:ON") == 0)        { manualLed(_heatingPin, HIGH, "OK:HEAT:ON", out); return; }
+      if (strcmp(command, "ACT:HEAT:OFF") == 0)       { manualLed(_heatingPin, LOW, "OK:HEAT:OFF", out); return; }
+      if (strcmp(command, "ACT:COOL:ON") == 0)        { manualLed(_coolingPin, HIGH, "OK:COOL:ON", out); return; }
+      if (strcmp(command, "ACT:COOL:OFF") == 0)       { manualLed(_coolingPin, LOW, "OK:COOL:OFF", out); return; }
+      if (strcmp(command, "ACT:HUMIDIFIER:ON") == 0)  { manualLed(_humidifierPin, HIGH, "OK:HUMIDIFIER:ON", out); return; }
+      if (strcmp(command, "ACT:HUMIDIFIER:OFF") == 0) { manualLed(_humidifierPin, LOW, "OK:HUMIDIFIER:OFF", out); return; }
+
+      if (startsWith(command, "ACT:PLAFONIERE:PWM:")) {
+        if (!_manualBypass) { strcpy(out, "ERR:MODE"); return; }
+        int p; if (!parseInt(command + 19, p)) { strcpy(out, "ERR:FORMAT:PWM"); return; }
+        if (p < 0 || p > 255) { strcpy(out, "ERR:RANGE:PWM"); return; }
         ledDimming(_ceilingLightsPin, p);
-        return "OK:PLAFONIERE:PWM";
+        strcpy(out, "OK:PLAFONIERE:PWM"); return;
       }
 
-      return "ERR:UNKNOWN";
+      strcpy(out, "ERR:UNKNOWN");
     }
 };
 
