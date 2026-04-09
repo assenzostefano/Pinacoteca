@@ -14,11 +14,15 @@ con fallback seriale solo se ArduinoBLE non e disponibile in compilazione.
 
 Su UNO R4 WiFi non serve modulo HC-05 esterno.
 
+Prima di compilare su hardware reale, installa la libreria ArduinoBLE
+(Arduino IDE/CLI Library Manager).
+
 Per App Inventor devi usare il componente `BluetoothLE` (non `BluetoothClient`).
 
 Identificativi BLE esposti dal firmware:
 
-- Nome periferica BLE: `Pinacoteca`
+- Nome BLE advertised (scan): `PINA-R4`
+- Device name GATT: `Pinacoteca`
 - Service UUID: `19B10000-E8F2-537E-4F6C-D104768A1214`
 - Characteristic RX (write): `19B10001-E8F2-537E-4F6C-D104768A1214`
 - Characteristic TX (notify/read): `19B10002-E8F2-537E-4F6C-D104768A1214`
@@ -80,6 +84,15 @@ Le risposte vengono pubblicate nella characteristic TX.
 
 In App Inventor:
 
-- connettiti al dispositivo `Pinacoteca`
+- avvia la scansione con `BluetoothLE.StartScanning`
+- seleziona il dispositivo `PINA-R4` dalla lista trovata dall'app
+- non cercarlo nelle impostazioni Bluetooth classiche di Android
 - fai `WriteStringValue` sulla characteristic RX
 - leggi/notifica la characteristic TX per ricevere risposte e stati
+
+Troubleshooting rapido:
+
+- Se su seriale leggi `BT:BLE:ADV:PINA-R4`, il BLE e in advertising.
+- Se leggi `BT:SERIAL:FALLBACK`, e' stato attivato il fallback seriale (niente BLE nativo).
+- Se leggi `ERR:BLE:BEGIN`, inizializzazione BLE fallita (verifica board, core e libreria ArduinoBLE).
+- Se in compilazione compare `ArduinoBLE.h: No such file or directory`, installa ArduinoBLE e ricompila.

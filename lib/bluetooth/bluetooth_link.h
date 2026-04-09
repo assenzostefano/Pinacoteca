@@ -13,7 +13,12 @@
 #include <Arduino.h>
 #include "bluetooth_connection.h"
 
-#if __has_include(<ArduinoBLE.h>)
+// Arduino CLI include discovery may not expose ArduinoBLE to __has_include
+// on UNO R4 unless the library is selected upfront by board macros.
+#if defined(ARDUINO_UNOR4_WIFI) || defined(ARDUINO_UNOWIFIR4) || defined(ARDUINO_ARCH_RENESAS_UNO)
+#include <ArduinoBLE.h>
+#define PINACOTECA_HAS_NATIVE_BLE 1
+#elif __has_include(<ArduinoBLE.h>)
 #include <ArduinoBLE.h>
 #define PINACOTECA_HAS_NATIVE_BLE 1
 #else
@@ -33,6 +38,7 @@ class BluetoothLink : public BluetoothConnection {
     BLEStringCharacteristic _rxCharacteristic;
     BLEStringCharacteristic _txCharacteristic;
     bool _connected;
+    bool _advertising;
 #endif
 
 #if PINACOTECA_HAS_BLUETOOTH_SERIAL1 && !PINACOTECA_HAS_NATIVE_BLE
@@ -58,6 +64,7 @@ class BluetoothLink : public BluetoothConnection {
         _txCharacteristic("19B10002-E8F2-537E-4F6C-D104768A1214",
                           BLENotify | BLERead, BT_MSG_MAX),
         _connected(false),
+        _advertising(false),
         _baudRate(baudRate),
         _started(false),
         _pendingLen(0) {
@@ -91,12 +98,16 @@ class BluetoothLink : public BluetoothConnection {
       if (!BLE.begin()) {
         _started = false;
         _connected = false;
+        _advertising = false;
         Serial.println(F("ERR:BLE:BEGIN"));
         return false;
       }
 
-      BLE.setLocalName("Pinacoteca");
+      // Keep advertised local name short to fit 31-byte BLE advertising payload
+      // together with a 128-bit custom service UUID.
+      BLE.setLocalName("PINA-R4");
       BLE.setDeviceName("Pinacoteca");
+      BLE.setConnectable(true);
       BLE.setAdvertisedService(_service);
 
       _service.addCharacteristic(_rxCharacteristic);
@@ -110,6 +121,8 @@ class BluetoothLink : public BluetoothConnection {
       _pendingLen = 0;
       _started = true;
       _connected = false;
+      _advertising = true;
+      Serial.println(F("BT:BLE:ADV:PINA-R4"));
       return true;
 #elif PINACOTECA_HAS_BLUETOOTH_SERIAL1
       Serial.println(F("BT:SERIAL:FALLBACK"));
@@ -165,7 +178,16 @@ class BluetoothLink : public BluetoothConnection {
       if (!_started) return;
 
       BLE.poll();
-      _connected = BLE.connected();
+      const bool nowConnected = BLE.connected();
+
+      if (nowConnected) {
+        _advertising = false;
+      } else if (_connected || !_advertising) {
+        BLE.advertise();
+        _advertising = true;
+      }
+
+      _connected = nowConnected;
 
       if (_rxCharacteristic.written()) {
         String message = _rxCharacteristic.value();
@@ -177,10 +199,6 @@ class BluetoothLink : public BluetoothConnection {
           _pendingMessage[len] = '\0';
           _pendingLen = len;
         }
-      }
-
-      if (!_connected) {
-        BLE.advertise();
       }
 #elif PINACOTECA_HAS_BLUETOOTH_SERIAL1
       if (!_started) return;
