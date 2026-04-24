@@ -30,7 +30,8 @@ class Turnstile {
     unsigned long _lastDebugPrintMillis;
     uint16_t _openTimeMs;
     uint16_t _debugPrintIntervalMs;
-    float _triggerDistanceCm;
+    float _inTriggerDistanceCm;
+    float _outTriggerDistanceCm;
 
     /// Ultrasonic pulse timeout in microseconds (~1.3 m range).
     /// This is well above the trigger threshold and keeps the loop responsive.
@@ -47,8 +48,8 @@ class Turnstile {
     }
 
     /// Check if a person was detected at the given distance
-    bool isPersonDetected(float distanceCm) const {
-      return distanceCm > 0.0f && distanceCm <= _triggerDistanceCm;
+    bool isPersonDetected(float distanceCm, float triggerDistanceCm) const {
+      return distanceCm > 0.0f && distanceCm <= triggerDistanceCm;
     }
 
     void debugSensors(float inDist,
@@ -137,7 +138,8 @@ class Turnstile {
         _openTimeMs(700),
         _lastDebugPrintMillis(0),
         _debugPrintIntervalMs(500),
-        _triggerDistanceCm(triggerDistanceCm > 0.0f ? triggerDistanceCm : 25.0f) {}
+        _inTriggerDistanceCm(triggerDistanceCm > 0.0f ? triggerDistanceCm : 25.0f),
+        _outTriggerDistanceCm(triggerDistanceCm > 0.0f ? triggerDistanceCm : 25.0f) {}
 
     void begin(Servo* servo) {
       _servo = servo;
@@ -182,8 +184,8 @@ class Turnstile {
       float inDist = readDistanceCm(_inTrigPin, _inEchoPin);
       float outDist = readDistanceCm(_outTrigPin, _outEchoPin);
 
-      bool inDetected = isPersonDetected(inDist);
-      bool outDetected = isPersonDetected(outDist);
+      bool inDetected = isPersonDetected(inDist, _inTriggerDistanceCm);
+      bool outDetected = isPersonDetected(outDist, _outTriggerDistanceCm);
 
       debugSensors(inDist, outDist, inDetected, outDetected, now);
 
@@ -224,6 +226,18 @@ class Turnstile {
       _sensorDebugEnabled = enabled;
       _debugPrintIntervalMs = intervalMs;
       _lastDebugPrintMillis = 0;
+    }
+
+    void setInTriggerDistanceCm(float triggerDistanceCm) {
+      if (triggerDistanceCm > 0.0f) {
+        _inTriggerDistanceCm = triggerDistanceCm;
+      }
+    }
+
+    void setOutTriggerDistanceCm(float triggerDistanceCm) {
+      if (triggerDistanceCm > 0.0f) {
+        _outTriggerDistanceCm = triggerDistanceCm;
+      }
     }
 
     uint8_t getPeopleCount() const { return _currentPeople; }

@@ -48,7 +48,8 @@ constexpr uint8_t PIN_PHOTORESISTOR      = A1;
 
 // ── System parameters ────────────────────────────────────────────
 constexpr uint8_t       MAX_PEOPLE          = 5;
-constexpr float         TURNSTILE_MIN_CM    = 2.0f;
+constexpr float         TURNSTILE_IN_MAX_CM = 6.0f;
+constexpr float         TURNSTILE_OUT_MAX_CM = 2.0f;
 constexpr float         TARGET_TEMP_C       = 20.0f;
 constexpr uint16_t      TARGET_LUX          = 200;
 constexpr float         TARGET_HUMIDITY     = 65.0f;
@@ -59,7 +60,7 @@ Servo myServo;
 
 Turnstile         entranceTurnstile(PIN_IN_TRIG, PIN_IN_ECHO,
                                     PIN_OUT_TRIG, PIN_OUT_ECHO,
-                                    MAX_PEOPLE, TURNSTILE_MIN_CM);
+                                    MAX_PEOPLE, TURNSTILE_OUT_MAX_CM);
 Stoplight         trafficLight(PIN_GREEN_LIGHT, PIN_RED_LIGHT);
 Thermostat        mainThermostat(PIN_TEMPERATURE_SENSOR, TARGET_TEMP_C,
                                  PIN_YELLOW_LIGHT, PIN_COOLING_RGB_BLUE,
@@ -109,6 +110,7 @@ void setup() {
   myServo.attach(PIN_SERVOMOTOR);
   myServo.write(0);
   entranceTurnstile.begin(&myServo);
+  entranceTurnstile.setInTriggerDistanceCm(TURNSTILE_IN_MAX_CM);
   entranceTurnstile.setSensorDebug(true, 0);
 
   trafficLight.begin();
