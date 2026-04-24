@@ -25,11 +25,12 @@ class Turnstile {
     bool _isGateOpen;
     bool _lastInDetected;
     bool _lastOutDetected;
+    bool _sensorDebugEnabled;
     unsigned long _closeAtMillis;
+    unsigned long _lastDebugPrintMillis;
     uint16_t _openTimeMs;
+    uint16_t _debugPrintIntervalMs;
     float _triggerDistanceCm;
-    unsigned long _lastUpdateMillis;
-    bool _readInNext;
 
     /// Ultrasonic pulse timeout in microseconds (~1.3 m range).
     /// This is well above the trigger threshold and keeps the loop responsive.
@@ -48,6 +49,47 @@ class Turnstile {
     /// Check if a person was detected at the given distance
     bool isPersonDetected(float distanceCm) const {
       return distanceCm > 0.0f && distanceCm <= _triggerDistanceCm;
+    }
+
+    void debugSensors(float inDist,
+                      float outDist,
+                      bool inDetected,
+                      bool outDetected,
+                      unsigned long now) {
+      if (!_sensorDebugEnabled) {
+        return;
+      }
+
+      if (_debugPrintIntervalMs > 0 &&
+          _lastDebugPrintMillis != 0 &&
+          (now - _lastDebugPrintMillis) < _debugPrintIntervalMs) {
+        return;
+      }
+
+      _lastDebugPrintMillis = now;
+
+      Serial.print(F("TURNSTILE:SENSORS IN="));
+      if (inDist < 0.0f) {
+        Serial.print(F("timeout"));
+      } else {
+        Serial.print(inDist);
+        Serial.print(F("cm"));
+      }
+
+      Serial.print(F(" OUT="));
+      if (outDist < 0.0f) {
+        Serial.print(F("timeout"));
+      } else {
+        Serial.print(outDist);
+        Serial.print(F("cm"));
+      }
+
+      Serial.print(F(" IN_DET="));
+      Serial.print(inDetected ? 1 : 0);
+      Serial.print(F(" OUT_DET="));
+      Serial.print(outDetected ? 1 : 0);
+      Serial.print(F(" PEOPLE="));
+      Serial.println(static_cast<int>(_currentPeople));
     }
 
     /**
@@ -90,11 +132,12 @@ class Turnstile {
         _isGateOpen(false),
         _lastInDetected(false),
         _lastOutDetected(false),
+        _sensorDebugEnabled(false),
         _closeAtMillis(0),
         _openTimeMs(700),
-        _triggerDistanceCm(triggerDistanceCm > 0.0f ? triggerDistanceCm : 25.0f),
-        _lastUpdateMillis(0),
-        _readInNext(true) {}
+        _lastDebugPrintMillis(0),
+        _debugPrintIntervalMs(500),
+        _triggerDistanceCm(triggerDistanceCm > 0.0f ? triggerDistanceCm : 25.0f) {}
 
     void begin(Servo* servo) {
       _servo = servo;
@@ -135,52 +178,53 @@ class Turnstile {
         _isGateOpen = false;
       }
 
+      // Read the sensors
+      float inDist = readDistanceCm(_inTrigPin, _inEchoPin);
+      float outDist = readDistanceCm(_outTrigPin, _outEchoPin);
+
+      bool inDetected = isPersonDetected(inDist);
+      bool outDetected = isPersonDetected(outDist);
+
+      debugSensors(inDist, outDist, inDetected, outDetected, now);
+
+      bool inTriggered = inDetected && !_lastInDetected;
+      bool outTriggered = outDetected && !_lastOutDetected;
+
+      _lastInDetected = inDetected;
+      _lastOutDetected = outDetected;
+
       if (_isGateOpen) return;
 
-      if (now - _lastUpdateMillis < 60) return;
-      _lastUpdateMillis = now;
-
-      if (_readInNext) {
-        float inDist = readDistanceCm(_inTrigPin, _inEchoPin);
-        bool inDetected = isPersonDetected(inDist);
-        bool inTriggered = inDetected && !_lastInDetected;
-        _lastInDetected = inDetected;
-
-        // Person entering
-        if (inTriggered && _currentPeople < _maxPeople) {
-          if (!moveServo(90)) {
-            pinacotecaSetError(PIN_ERR_TURNSTILE);
-            return;
-          }
-          _currentPeople++;
-          _isGateOpen = true;
-          _closeAtMillis = millis() + _openTimeMs;
+      // Person entering
+      if (inTriggered && _currentPeople < _maxPeople) {
+        if (!moveServo(90)) {
+          pinacotecaSetError(PIN_ERR_TURNSTILE);
+          return;
         }
-        _readInNext = false;
-      } else {
-        float outDist = readDistanceCm(_outTrigPin, _outEchoPin);
-        bool outDetected = isPersonDetected(outDist);
-        bool outTriggered = outDetected && !_lastOutDetected;
-        _lastOutDetected = outDetected;
+        _currentPeople++;
+        _isGateOpen = true;
+        _closeAtMillis = now + _openTimeMs;
+      }
 
-        // Person leaving
-        if (outTriggered && _currentPeople > 0) {
-          if (!moveServo(90)) {
-            pinacotecaSetError(PIN_ERR_TURNSTILE);
-            return;
-          }
-          _currentPeople--;
-          _isGateOpen = true;
-          _closeAtMillis = millis() + _openTimeMs;
+      // Person leaving
+      if (outTriggered && _currentPeople > 0) {
+        if (!moveServo(90)) {
+          pinacotecaSetError(PIN_ERR_TURNSTILE);
+          return;
         }
-        _readInNext = true;
+        _currentPeople--;
+        _isGateOpen = true;
+        _closeAtMillis = now + _openTimeMs;
       }
 
       pinacotecaClearError(PIN_ERR_TURNSTILE);
     }
 
-    bool getInDetected() const { return _lastInDetected; }
-    bool getOutDetected() const { return _lastOutDetected; }
+    void setSensorDebug(bool enabled, uint16_t intervalMs = 500) {
+      _sensorDebugEnabled = enabled;
+      _debugPrintIntervalMs = intervalMs;
+      _lastDebugPrintMillis = 0;
+    }
 
     uint8_t getPeopleCount() const { return _currentPeople; }
     uint8_t getMaxPeople() const { return _maxPeople; }

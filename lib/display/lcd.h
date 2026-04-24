@@ -143,7 +143,7 @@ class DisplayPanel {
 #endif
     }
 
-    void printStatusPage(int people, bool inDet, bool outDet, float temp, float tgtTemp,
+    void printStatusPage(int people, float temp, float tgtTemp,
                          float hum, float tgtHum, float lux, int tgtLux) {
       const float tol = 1.0f;
       char tempStr[8], humStr[8];
@@ -163,7 +163,7 @@ class DisplayPanel {
       char line1[22], line2[22], line3[22], line4[22];
       snprintf(line1, sizeof(line1), "T:%sC (%s)", tempStr, mode);
       snprintf(line2, sizeof(line2), "H:%s%%", humStr);
-      snprintf(line3, sizeof(line3), "P:%d/%d I:%d O:%d", people, _maxPeople, inDet, outDet);
+      snprintf(line3, sizeof(line3), "P:%d/%d", people, _maxPeople);
       snprintf(line4, sizeof(line4), "L:%d/%d", (int)(lux + 0.5f), tgtLux);
 
       _display.setTextSize(1);
@@ -174,7 +174,7 @@ class DisplayPanel {
     #else
       char line1[17], line2[17];
       snprintf(line1, sizeof(line1), "T:%sC H:%s%%", tempStr, humStr);
-      snprintf(line2, sizeof(line2), "C:%s P:%d I%d O%d", mode, people, inDet, outDet);
+      snprintf(line2, sizeof(line2), "C:%s TR:%d/%d", mode, people, _maxPeople);
 
       _display.setCursor(0, 0); _display.print(line1);
       _display.setCursor(0, 1); _display.print(line2);
@@ -304,7 +304,7 @@ class DisplayPanel {
      * Rotates through pages at 5-second intervals with a
      * 1-second refresh rate. Skips rendering during the splash logo.
      */
-    void update(int currentPeople, bool inDet, bool outDet, Thermostat& thermostat,
+    void update(int currentPeople, Thermostat& thermostat,
                 HumidifierControl& humidifier, LightingControl& lighting) {
       unsigned long now = millis();
 
@@ -340,7 +340,7 @@ class DisplayPanel {
       if (_page == 0) {
         printDateTimePage();
       } else if (_page == 1) {
-        printStatusPage(currentPeople, inDet, outDet, currentTemp, targetTemp,
+        printStatusPage(currentPeople, currentTemp, targetTemp,
                         currentHum, targetHum, currentLux, targetLux);
       } else if (_page == 2) {
         printFaultPage(currentPeople, currentTemp, targetTemp,

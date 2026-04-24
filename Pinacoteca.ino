@@ -48,7 +48,7 @@ constexpr uint8_t PIN_PHOTORESISTOR      = A1;
 
 // ── System parameters ────────────────────────────────────────────
 constexpr uint8_t       MAX_PEOPLE          = 5;
-constexpr float         TURNSTILE_MIN_CM    = 25.0f;
+constexpr float         TURNSTILE_MIN_CM    = 2.0f;
 constexpr float         TARGET_TEMP_C       = 20.0f;
 constexpr uint16_t      TARGET_LUX          = 200;
 constexpr float         TARGET_HUMIDITY     = 65.0f;
@@ -109,6 +109,7 @@ void setup() {
   myServo.attach(PIN_SERVOMOTOR);
   myServo.write(0);
   entranceTurnstile.begin(&myServo);
+  entranceTurnstile.setSensorDebug(true, 0);
 
   trafficLight.begin();
   mainThermostat.begin();
@@ -138,7 +139,7 @@ void loop() {
   // Give BLE another chance before display refresh (may trigger sensor reads).
   updateRemoteChannel();
 
-  galleryDisplay.update(entranceTurnstile,
+  galleryDisplay.update(entranceTurnstile.getPeopleCount(),
                         mainThermostat, galleryHumidifier, galleryLighting);
 
   updateRemoteChannel();
