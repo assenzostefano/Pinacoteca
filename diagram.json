@@ -299,7 +299,7 @@
     ],
     [
       "us_in:TRIG",
-      "uno:6",
+      "uno:12",
       "green",
       []
     ],
@@ -323,7 +323,7 @@
     ],
     [
       "us_out:TRIG",
-      "uno:7",
+      "uno:12",
       "orange",
       []
     ],

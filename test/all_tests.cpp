@@ -141,7 +141,7 @@ TEST_F(BaseTest, AntiSufferingServoBlocksOutOfRange) {
 // ── Turnstile tests ───────────────────────────────────────────────
 
 TEST_F(BaseTest, TurnstileIncrementsAndDecrementsPeople) {
-    Turnstile t(6, 7, 5);
+    Turnstile t(6, 6, 7, 7, 5);
     Servo s;
     s.attach(3);
     s.write(0);
@@ -162,7 +162,7 @@ TEST_F(BaseTest, TurnstileIncrementsAndDecrementsPeople) {
 }
 
 TEST_F(BaseTest, TurnstileRespectsMaxPeople) {
-    Turnstile t(6, 7, 1);
+    Turnstile t(6, 6, 7, 7, 1);
     Servo s;
     s.attach(3);
     s.write(0);
@@ -176,7 +176,7 @@ TEST_F(BaseTest, TurnstileRespectsMaxPeople) {
 }
 
 TEST_F(BaseTest, TurnstileBeginConfiguresPins) {
-    Turnstile t(6, 7, 5);
+    Turnstile t(6, 6, 7, 7, 5);
     Servo s;
     s.attach(3);
     t.begin(&s);
@@ -254,6 +254,8 @@ TEST_F(BaseTest, HumidityReadAndError) {
     dht_sensor.setHumidity(66.0f);
     EXPECT_FLOAT_EQ(readHumidity(), 66.0f);
     EXPECT_FALSE(pinacotecaHasError(PIN_ERR_HUM_SENSOR));
+
+    __mock_millis += 2500;
 
     dht_sensor.setHumidity(NAN);
     EXPECT_FLOAT_EQ(readHumidity(), -999.0f);
@@ -534,7 +536,7 @@ TEST_F(BaseTest, BluetoothCommandProcessorHandlesModeAndState) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
-    Turnstile ts(6, 7, 5);
+    Turnstile ts(6, 6, 7, 7, 5);
     Servo s;
     s.write(0);
     ts.begin(&s);
@@ -558,7 +560,7 @@ TEST_F(BaseTest, BluetoothCommandProcessorBlocksManualCommandsInAuto) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
-    Turnstile ts(6, 7, 5);
+    Turnstile ts(6, 6, 7, 7, 5);
     Servo s;
     s.write(0);
     ts.begin(&s);
@@ -573,7 +575,7 @@ TEST_F(BaseTest, BluetoothCommandProcessorManualOverrideControlsActuators) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
-    Turnstile ts(6, 7, 5);
+    Turnstile ts(6, 6, 7, 7, 5);
     Servo s;
     s.attach(3);
     s.write(0);
@@ -596,7 +598,7 @@ TEST_F(BaseTest, BluetoothCommandProcessorSetPeopleAndRanges) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
-    Turnstile ts(6, 7, 5);
+    Turnstile ts(6, 6, 7, 7, 5);
     Servo s;
     s.write(0);
     ts.begin(&s);
@@ -604,9 +606,9 @@ TEST_F(BaseTest, BluetoothCommandProcessorSetPeopleAndRanges) {
     CommandProcessor cp(&th, &hc, &lc, &ts, &s, 4, 5, 9, 8, 11, 10);
 
     EXPECT_EQ(runCommand(cp, "SET:PEOPLE:3"), "OK:PEOPLE");
-    EXPECT_EQ(ts.getPeopleCount(), 3);
+    EXPECT_EQ(ts.getMaxPeople(), 3);
 
-    EXPECT_EQ(runCommand(cp, "SET:PEOPLE:9"), "ERR:RANGE:PEOPLE");
+    EXPECT_EQ(runCommand(cp, "SET:PEOPLE:300"), "ERR:RANGE:PEOPLE");
     EXPECT_EQ(runCommand(cp, "SET:TEMP:35"), "ERR:RANGE:TEMP");
     EXPECT_EQ(runCommand(cp, "SET:LUX:10"), "ERR:RANGE:LUX");
 }
@@ -617,7 +619,7 @@ TEST_F(BaseTest, BluetoothRemoteGatewayReadsSerialAndReplies) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
-    Turnstile ts(6, 7, 5);
+    Turnstile ts(6, 6, 7, 7, 5);
     Servo s;
     s.write(0);
     ts.begin(&s);
@@ -639,7 +641,7 @@ TEST_F(BaseTest, BluetoothRemoteGatewayProcessesBluetoothMessageAndPublishesStat
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
-    Turnstile ts(6, 7, 5);
+    Turnstile ts(6, 6, 7, 7, 5);
     Servo s;
     s.write(0);
     ts.begin(&s);
@@ -677,7 +679,7 @@ TEST_F(BaseTest, BluetoothCommandProcessorRejectsEmptyOrWhitespaceCommands) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
-    Turnstile ts(6, 7, 5);
+    Turnstile ts(6, 6, 7, 7, 5);
     Servo s;
     s.write(0);
     ts.begin(&s);
@@ -692,7 +694,7 @@ TEST_F(BaseTest, BluetoothCommandProcessorNormalizesCaseAndWhitespace) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
-    Turnstile ts(6, 7, 5);
+    Turnstile ts(6, 6, 7, 7, 5);
     Servo s;
     s.write(0);
     ts.begin(&s);
@@ -709,7 +711,7 @@ TEST_F(BaseTest, BluetoothCommandProcessorRejectsMalformedNumericPayloads) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
-    Turnstile ts(6, 7, 5);
+    Turnstile ts(6, 6, 7, 7, 5);
     Servo s;
     s.write(0);
     ts.begin(&s);
@@ -730,7 +732,7 @@ TEST_F(BaseTest, BluetoothCommandProcessorAcceptsBoundaryValues) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
-    Turnstile ts(6, 7, 5);
+    Turnstile ts(6, 6, 7, 7, 5);
     Servo s;
     s.write(90);
     ts.begin(&s);
@@ -743,8 +745,8 @@ TEST_F(BaseTest, BluetoothCommandProcessorAcceptsBoundaryValues) {
     EXPECT_EQ(runCommand(cp, "SET:HUM:80.0"), "OK:HUM");
     EXPECT_EQ(runCommand(cp, "SET:LUX:50"), "OK:LUX");
     EXPECT_EQ(runCommand(cp, "SET:LUX:1200"), "OK:LUX");
-    EXPECT_EQ(runCommand(cp, "SET:PEOPLE:0"), "OK:PEOPLE");
-    EXPECT_EQ(runCommand(cp, "SET:PEOPLE:5"), "OK:PEOPLE");
+    EXPECT_EQ(runCommand(cp, "SET:PEOPLE:0"), "ERR:RANGE:PEOPLE"); // Minimum max people is 1
+    EXPECT_EQ(runCommand(cp, "SET:PEOPLE:255"), "OK:PEOPLE");
 
     EXPECT_EQ(runCommand(cp, "MANUAL:ON"), "OK:MANUAL:ON");
     EXPECT_EQ(runCommand(cp, "SERVO:ANGLE:0"), "OK:SERVO:ANGLE");
@@ -757,7 +759,7 @@ TEST_F(BaseTest, BluetoothCommandProcessorManualOffBlocksManualAgain) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
-    Turnstile ts(6, 7, 5);
+    Turnstile ts(6, 6, 7, 7, 5);
     Servo s;
     s.write(0);
     ts.begin(&s);
@@ -774,7 +776,7 @@ TEST_F(BaseTest, BluetoothCommandProcessorUnknownCommandReturnsError) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
-    Turnstile ts(6, 7, 5);
+    Turnstile ts(6, 6, 7, 7, 5);
     Servo s;
     s.write(0);
     ts.begin(&s);
@@ -787,7 +789,7 @@ TEST_F(BaseTest, BluetoothRemoteGatewayHandlesFragmentedSerialInput) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
-    Turnstile ts(6, 7, 5);
+    Turnstile ts(6, 6, 7, 7, 5);
     Servo s;
     s.write(0);
     ts.begin(&s);
@@ -811,7 +813,7 @@ TEST_F(BaseTest, BluetoothRemoteGatewayRejectsTooLongSerialCommand) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
-    Turnstile ts(6, 7, 5);
+    Turnstile ts(6, 6, 7, 7, 5);
     Servo s;
     s.write(0);
     ts.begin(&s);
@@ -832,7 +834,7 @@ TEST_F(BaseTest, BluetoothRemoteGatewaySkipsStatePublishWhenDisconnected) {
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
-    Turnstile ts(6, 7, 5);
+    Turnstile ts(6, 6, 7, 7, 5);
     Servo s;
     s.write(0);
     ts.begin(&s);
@@ -853,7 +855,7 @@ TEST_F(BaseTest, BluetoothRemoteGatewayProcessesQueuedBluetoothCommandsAcrossUpd
     Thermostat th(A0, 20.0f, 9, 8);
     HumidifierControl hc(11, 65.0f);
     LightingControl lc(A1, 10, 200);
-    Turnstile ts(6, 7, 5);
+    Turnstile ts(6, 6, 7, 7, 5);
     Servo s;
     s.write(0);
     ts.begin(&s);

@@ -153,11 +153,12 @@ class CommandProcessor {
       const char* mode = _manualBypass ? "MANUAL" : "AUTO";
 
       snprintf(buf, bufSize,
-               "STATE:T=%s;H=%s;L=%s;P=%d;S=%d;M=%s;TT=%s;TH=%s;TL=%d",
+               "STATE:T=%s;H=%s;L=%s;P=%d;S=%d;M=%s;TT=%s;TH=%s;TL=%d;PM=%d",
                t, h, l,
                _turnstile->getPeopleCount(),
                servoAngle, mode, tt, th,
-               _lighting->getTargetLux());
+               _lighting->getTargetLux(),
+               _turnstile->getMaxPeople());
     }
 
     /**
@@ -200,8 +201,8 @@ class CommandProcessor {
       }
       if (startsWith(command, "SET:PEOPLE:")) {
         int v; if (!parseInt(command + 11, v)) { strcpy(out, "ERR:FORMAT:PEOPLE"); return; }
-        if (v < 0 || v > _turnstile->getMaxPeople()) { strcpy(out, "ERR:RANGE:PEOPLE"); return; }
-        _turnstile->setPeopleCount(static_cast<uint8_t>(v)); strcpy(out, "OK:PEOPLE"); return;
+        if (v < 1 || v > 255) { strcpy(out, "ERR:RANGE:PEOPLE"); return; }
+        _turnstile->setMaxPeople(static_cast<uint8_t>(v)); strcpy(out, "OK:PEOPLE"); return;
       }
 
       // Servo commands (manual mode only)

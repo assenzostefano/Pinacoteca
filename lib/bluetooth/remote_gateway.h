@@ -21,6 +21,7 @@ class RemoteControlGateway {
 
     unsigned long _statePeriodMs;
     unsigned long _lastStateMillis;
+    bool _wasConnected;
 
     static constexpr uint8_t RX_BUFFER_SIZE = BT_MSG_MAX;
     char _serialBuf[RX_BUFFER_SIZE];
@@ -37,9 +38,13 @@ class RemoteControlGateway {
 
       _lastStateMillis = now;
 
+      char stateBuf[128];
+      _cmd.buildStatePayload(stateBuf, sizeof(stateBuf));
+      
+      // Log to serial monitor for debugging
+      Serial.println(stateBuf);
+
       if (_bluetooth.isConnected()) {
-        char stateBuf[128];
-        _cmd.buildStatePayload(stateBuf, sizeof(stateBuf));
         _bluetooth.sendMessage(stateBuf);
       }
     }
@@ -79,7 +84,9 @@ class RemoteControlGateway {
 
       char cmdBuf[BT_MSG_MAX];
       if (_bluetooth.readMessage(cmdBuf, sizeof(cmdBuf))) {
+        Serial.print(F("BT Rx: ")); Serial.println(cmdBuf);
         _cmd.processCommand(cmdBuf, _responseBuf);
+        Serial.print(F("BT Tx: ")); Serial.println(_responseBuf);
         _bluetooth.sendMessage(_responseBuf);
       }
     }
@@ -102,6 +109,7 @@ class RemoteControlGateway {
         _bluetooth(bluetooth),
         _statePeriodMs(statePeriodMs),
         _lastStateMillis(0),
+        _wasConnected(false),
         _serialLen(0),
         _serialOverflow(false) {
       _serialBuf[0] = '\0';
@@ -118,6 +126,13 @@ class RemoteControlGateway {
     void update() {
       handleSerial();
       handleBluetooth();
+
+      bool connected = _bluetooth.isConnected();
+      if (connected && !_wasConnected) {
+        _lastStateMillis = millis();
+      }
+      _wasConnected = connected;
+
       publishStateIfDue();
     }
 };

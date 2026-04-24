@@ -180,6 +180,12 @@ class BluetoothLink : public BluetoothConnection {
       BLE.poll();
       const bool nowConnected = BLE.connected();
 
+      if (nowConnected && !_connected) {
+        Serial.println(F("BT:BLE:CONN"));
+      } else if (!nowConnected && _connected) {
+        Serial.println(F("BT:BLE:DISC"));
+      }
+
       if (nowConnected) {
         _advertising = false;
       } else if (_connected || !_advertising) {

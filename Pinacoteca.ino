@@ -34,8 +34,10 @@
 constexpr uint8_t PIN_SERVOMOTOR       = 3;
 constexpr uint8_t PIN_GREEN_LIGHT      = 4;
 constexpr uint8_t PIN_RED_LIGHT        = 5;
-constexpr uint8_t PIN_IN_ULTRASONIC    = 6;
-constexpr uint8_t PIN_OUT_ULTRASONIC   = 7;
+constexpr uint8_t PIN_IN_ECHO          = 6;
+constexpr uint8_t PIN_IN_TRIG          = 12;  // Separato
+constexpr uint8_t PIN_OUT_ECHO         = 7;
+constexpr uint8_t PIN_OUT_TRIG         = 12;  // Separato
 constexpr uint8_t PIN_COOLING_RGB_BLUE = 8;   // Cooling (digital)
 constexpr uint8_t PIN_YELLOW_LIGHT     = 9;   // Heating
 constexpr uint8_t PIN_CEILING_LIGHTS   = 10;  // Gallery ceiling lights (PWM)
@@ -55,7 +57,8 @@ constexpr unsigned long THERMOSTAT_PAUSE_MS = 60000UL;
 // ── Global objects ───────────────────────────────────────────────
 Servo myServo;
 
-Turnstile         entranceTurnstile(PIN_IN_ULTRASONIC, PIN_OUT_ULTRASONIC,
+Turnstile         entranceTurnstile(PIN_IN_TRIG, PIN_IN_ECHO,
+                                    PIN_OUT_TRIG, PIN_OUT_ECHO,
                                     MAX_PEOPLE, TURNSTILE_MIN_CM);
 Stoplight         trafficLight(PIN_GREEN_LIGHT, PIN_RED_LIGHT);
 Thermostat        mainThermostat(PIN_TEMPERATURE_SENSOR, TARGET_TEMP_C,
@@ -117,17 +120,25 @@ void setup() {
 }
 
 void loop() {
+  // Service BLE early so discovery/ATT traffic is handled promptly.
+  updateRemoteChannel();
+
   const bool manualBypass = isManualBypassEnabled();
 
   if (!manualBypass) {
     entranceTurnstile.update();
+    updateRemoteChannel();
+
     trafficLight.update(entranceTurnstile.getPeopleCount(), MAX_PEOPLE);
     mainThermostat.update();
     galleryLighting.update();
     galleryHumidifier.update();
   }
 
-  galleryDisplay.update(entranceTurnstile.getPeopleCount(),
+  // Give BLE another chance before display refresh (may trigger sensor reads).
+  updateRemoteChannel();
+
+  galleryDisplay.update(entranceTurnstile,
                         mainThermostat, galleryHumidifier, galleryLighting);
 
   updateRemoteChannel();
